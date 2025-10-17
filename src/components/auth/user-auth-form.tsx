@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -22,10 +23,9 @@ import {
 } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
 import { FirebaseError } from 'firebase/app';
-import { setDoc, doc, getDoc, updateProfile } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Checkbox } from '@/components/ui/checkbox';
-import { sendPasswordResetEmail, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 interface UserAuthFormProps {
   formType: 'login' | 'signup';
@@ -35,7 +35,6 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
   const isLogin = formType === 'login';
   const router = useRouter();
   const auth = useAuth();
-  const firestore = useFirestore();
   const { toast } = useToast();
 
   const [email, setEmail] = useState('');
@@ -88,6 +87,9 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
         title = 'Account Exists';
         description = 'An account already exists with the same email address but different sign-in credentials.';
         break;
+      default:
+        description = error.message;
+        break;
     }
     toast({ variant: 'destructive', title, description });
   };
@@ -119,13 +121,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
                 displayName: `${firstName} ${lastName}`
             });
 
-            // 3. Manually save additional info to Firestore. 
-            // The Cloud Function will handle the core user document creation.
-            const userDocRef = doc(firestore, "users", user.uid);
-            await setDoc(userDocRef, {
-                shippingAddress: shippingAddress,
-                phoneNumber: phoneNumber ? `+234${phoneNumber}` : ''
-            }, { merge: true });
+            // The on-create-user function will handle creating the user doc in firestore
         }
         
         toast({
@@ -177,9 +173,8 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
     setIsGoogleLoading(true);
     try {
       const userCredential = await initiateGoogleSignIn(auth);
-      const user = userCredential.user;
-       // The onUserCreate function will handle creating the Firestore doc.
-       // No need to write to Firestore from the client on Google sign-in.
+      // The onUserCreate function will handle creating the Firestore doc.
+      // No need to write to Firestore from the client on Google sign-in.
       toast({
         title: 'Google Sign-In Successful',
         description: 'Welcome! Redirecting to your dashboard...',
@@ -325,3 +320,5 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
     </Card>
   );
 }
+
+    
