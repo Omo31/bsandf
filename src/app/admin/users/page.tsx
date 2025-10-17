@@ -38,34 +38,32 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import type { User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-function UserActions({ user }: { user: WithId<User> }) {
+function UserActions({ user: targetUser }: { user: WithId<User> }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Note: For a robust app, isAdmin should be derived from a separate roles collection
-  // or custom claims, not just a field on the user doc for security rule simplicity.
-  // This is a simplified example.
   useEffect(() => {
-    setIsAdmin(user.role === 'admin');
-  }, [user.role]);
+    setIsAdmin(targetUser.role === 'admin');
+  }, [targetUser.role]);
 
   const handleToggleAdmin = async () => {
-    const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+    const adminRoleRef = doc(firestore, 'roles_admin', targetUser.uid);
     try {
       if (isAdmin) {
         await deleteDoc(adminRoleRef);
-        toast({ title: 'Admin Revoked', description: `${user.firstName} is no longer an admin.` });
+        toast({ title: 'Admin Revoked', description: `${targetUser.firstName} is no longer an admin.` });
       } else {
-        await setDoc(adminRoleRef, { uid: user.uid }); // Add any relevant data
-        toast({ title: 'Admin Granted', description: `${user.firstName} is now an admin.` });
+        await setDoc(adminRoleRef, { uid: targetUser.uid }); // Add any relevant data
+        toast({ title: 'Admin Granted', description: `${targetUser.firstName} is now an admin.` });
       }
       setIsAdmin(!isAdmin); // Optimistically update UI
     } catch (error) {
@@ -137,8 +135,31 @@ function UserActions({ user }: { user: WithId<User> }) {
 
 export default function UserManagementPage() {
   const firestore = useFirestore();
-  const usersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'users') : null), [firestore]);
-  const { data: users, isLoading } = useCollection<User>(usersQuery);
+  const { user: currentUser, isUserLoading } = useUser();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && currentUser) {
+      currentUser.getIdTokenResult().then((idTokenResult) => {
+        const isAdminClaim = !!idTokenResult.claims.admin;
+        setIsAdmin(isAdminClaim);
+        if (!isAdminClaim) {
+          router.push('/dashboard');
+        }
+      });
+    } else if (!isUserLoading && !currentUser) {
+      router.push('/login');
+    }
+  }, [currentUser, isUserLoading, router]);
+
+  const usersQuery = useMemoFirebase(
+    () => (firestore && isAdmin ? collection(firestore, 'users') : null),
+    [firestore, isAdmin]
+  );
+  const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
+
+  const isLoading = isUserLoading || isLoadingUsers || !isAdmin;
 
   return (
     <div className="flex-1 space-y-4 pt-6">
@@ -211,7 +232,7 @@ export default function UserManagementPage() {
                       <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>{user.role}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <UserActions user={user} />
+                      {currentUser?.uid !== user.uid && <UserActions user={user} />}
                     </TableCell>
                   </TableRow>
                 ))}

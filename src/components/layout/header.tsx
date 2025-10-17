@@ -25,8 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
-// Intentionally removing useUser and useAuth for diagnostics
-// import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -39,10 +38,8 @@ export default function Header() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
-  // MOCK: Assume user is logged out to avoid auth hooks.
-  const user = null;
-  const isUserLoading = false;
-  const auth = null;
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
 
 
   useEffect(() => {
@@ -54,10 +51,9 @@ export default function Header() {
   };
   
   const handleLogout = () => {
-    // Mocked for now
-    // if (auth) {
-    //   auth.signOut();
-    // }
+    if (auth) {
+      auth.signOut();
+    }
   };
 
   const isAuthenticated = !!user;
