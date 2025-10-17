@@ -37,14 +37,14 @@ export function ChatWidget() {
   }, [isUserLoading, user]);
 
   const messagesQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || isUserLoading) return null;
     return query(
         collection(firestore, 'chat_messages'),
         where('senderId', 'in', [user.uid, adminId]),
         where('receiverId', 'in', [user.uid, adminId]),
         orderBy('timestamp')
     );
-  }, [user, firestore, adminId]);
+  }, [user, isUserLoading, firestore, adminId]);
 
   const { data: messages } = useCollection<ChatMessage>(messagesQuery);
 
