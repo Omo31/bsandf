@@ -18,7 +18,6 @@ import { Logo } from '@/components/icons';
 import { Github, Chrome, Loader2 } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import {
-  initiateEmailSignUp,
   initiateGoogleSignIn,
 } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +25,7 @@ import { FirebaseError } from 'firebase/app';
 import { setDoc, doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Checkbox } from '@/components/ui/checkbox';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { sendPasswordResetEmail, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 
 interface UserAuthFormProps {
   formType: 'login' | 'signup';
@@ -103,7 +102,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
                 setIsLoading(false);
                 return;
             }
-            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
             // Check if user document exists, if not create it.
@@ -125,7 +124,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
                  setIsLoading(false);
                  return;
             }
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
             
             // Save additional user info to Firestore
@@ -342,11 +341,4 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
       </form>
     </Card>
   );
-}
-
-declare module 'firebase/auth' {
-    interface Auth {
-        signInWithEmailAndPassword(email: string, password: string): Promise<any>;
-        createUserWithEmailAndPassword(email: string, password: string): Promise<any>;
-    }
 }
