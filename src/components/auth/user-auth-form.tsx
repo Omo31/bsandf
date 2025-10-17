@@ -33,6 +33,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 
 const loginSchema = z.object({
@@ -45,8 +46,6 @@ const signupSchema = z.object({
   lastName: z.string().min(1, { message: "Last name is required." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  shippingAddress: z.string().optional(),
-  phoneNumber: z.string().optional(),
   agreedToTerms: z.literal(true, {
     errorMap: () => ({ message: "You must agree to the terms and conditions." }),
   }),
@@ -62,6 +61,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
   const router = useRouter();
   const auth = useAuth();
   const { toast } = useToast();
+  const functions = getFunctions();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -73,8 +73,6 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
         lastName: '',
         email: '',
         password: '',
-        shippingAddress: '',
-        phoneNumber: '',
         agreedToTerms: false,
     },
   });
@@ -130,8 +128,14 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
             await updateProfile(userCredential.user, {
                 displayName: `${values.firstName} ${values.lastName}`
             });
-            // The onUserCreate cloud function will automatically create the Firestore user document,
-            // including the extra fields like shipping address and phone number.
+
+            // 3. Call the backend function to create the Firestore document
+            const initializeUser = httpsCallable(functions, 'initializeUser');
+            await initializeUser({
+                email: values.email,
+                firstName: values.firstName,
+                lastName: values.lastName,
+            });
         }
         
         toast({
@@ -339,3 +343,5 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
     </Card>
   );
 }
+
+    

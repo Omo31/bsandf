@@ -4,41 +4,70 @@ import * as admin from 'firebase-admin';
 import { onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onUserCreate } from 'firebase-functions/v2/auth';
 import { FieldValue } from 'firebase-admin/firestore';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
+ * Sets the admin custom claim for the first user who signs up.
  */
-export const createFirestoreUser = onUserCreate(async (event) => {
+export const setAdminClaimOnFirstUser = onUserCreate(async (event) => {
   const user = event.data;
-  const { uid, email, displayName } = user;
+  const { uid } = user;
+
+  try {
+    const userCountSnapshot = await db.collection('users').limit(2).get();
+    
+    // If there are no existing user documents, this is the first user.
+    if (userCountSnapshot.empty) {
+      console.log(`First user detected. Granting admin custom claim to ${uid}.`);
+      await admin.auth().setCustomUserClaims(uid, { admin: true });
+      // Also update the role in their future Firestore doc
+      const userRef = db.collection('users').doc(uid);
+      await userRef.set({ role: 'admin' }, { merge: true });
+      console.log(`Custom claim and role set for first user ${uid}.`);
+    }
+  } catch (error) {
+    console.error(`Error in setAdminClaimOnFirstUser for ${uid}:`, error);
+  }
+});
+
+
+/**
+ * Callable function to initialize a user's document in Firestore.
+ * Triggered from the client-side after account creation.
+ */
+export const initializeUser = onCall(async (request) => {
+  // Check if the user is authenticated.
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'The function must be called while authenticated.');
+  }
+
+  const { email, firstName, lastName } = request.data;
+  const { uid } = request.auth;
+
+  if (!firstName || !lastName || !email) {
+    throw new HttpsError('invalid-argument', 'The function must be called with firstName, lastName, and email arguments.');
+  }
 
   const userRef = db.collection('users').doc(uid);
 
-  // Split displayName into firstName and lastName, with fallbacks.
-  const nameParts = displayName?.split(' ') || [];
-  const firstName = nameParts[0] || 'New';
-  const lastName = nameParts.slice(1).join(' ') || 'User';
-
   try {
-    // Just create a user with the role 'user'
-    const userRole = 'user';
-
     await userRef.set({
-        uid: uid,
-        email: email,
-        firstName: firstName,
-        lastName: lastName,
-        role: userRole,
-        createdAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    
-    console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
+      uid,
+      email,
+      firstName,
+      lastName,
+      role: 'user', // Default role is 'user'
+      createdAt: FieldValue.serverTimestamp(),
+    }, { merge: true }); // Use merge to avoid overwriting the role if set by onUserCreate
 
+    console.log(`Successfully created user document for ${uid}.`);
+    return { success: true, message: `User ${uid} initialized.` };
   } catch (error) {
     console.error(`Error creating user document for ${uid}:`, error);
+    throw new HttpsError('internal', 'Could not create user document.');
   }
 });
 
@@ -214,3 +243,5 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
     console.error('Error sending order status notification:', error);
   }
 });
+
+    
