@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -37,24 +38,13 @@ const navLinks = [
 export default function Header() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-
+  
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
-
-
+  
   useEffect(() => {
     setIsClient(true);
-    if (user) {
-      // Use getIdTokenResult to check for custom claims.
-      // Passing `true` forces a refresh if the token is old.
-      user.getIdTokenResult(true).then(idTokenResult => {
-        setIsAdmin(!!idTokenResult.claims.admin);
-      });
-    } else {
-      setIsAdmin(false);
-    }
-  }, [user]);
+  }, []);
 
   const handleLinkClick = () => {
     setIsSheetOpen(false);
@@ -116,9 +106,9 @@ export default function Header() {
                       <Link href="/dashboard" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
                         Dashboard
                       </Link>
-                      {isAdmin && <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
+                      <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
                         Admin
-                      </Link>}
+                      </Link>
                        <DropdownMenuSeparator />
                        <Button variant="ghost" className="justify-start" onClick={handleLogout}>
                           <LogOut className="mr-2 h-4 w-4" />
@@ -198,17 +188,15 @@ export default function Header() {
                       <span>Wishlist</span>
                     </Link>
                   </DropdownMenuItem>
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin">
-                          <LayoutGrid className="mr-2 h-4 w-4" />
-                          <span>Admin</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
+                  
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin">
+                      <LayoutGrid className="mr-2 h-4 w-4" />
+                      <span>Admin</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
