@@ -7,6 +7,8 @@ export type Product = {
   imagePlaceholderId: string;
 };
 
+export type WithId<T> = T & { id: string };
+
 export type User = {
   id: string;
   name: string;

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import Image from 'next/image';
 import {
@@ -18,9 +18,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { products } from '@/lib/data';
-import { placeholderImages } from '@/lib/placeholder-images';
-import { MoreHorizontal, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,28 +26,191 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import type { Product, WithId } from '@/lib/types';
+import { placeholderImages } from '@/lib/placeholder-images';
+import { collection } from 'firebase/firestore';
+import { useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function ProductDialog({
+  product,
+  onSave,
+  children,
+}: {
+  product?: WithId<Product>;
+  onSave: (productData: Product) => void;
+  children: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [name, setName] = useState(product?.name || '');
+  const [description, setDescription] = useState(product?.description || '');
+  const [price, setPrice] = useState(product?.price || 0);
+  const [stock, setStock] = useState(product?.stock || 0);
+  const [imagePlaceholderId, setImagePlaceholderId] = useState(product?.imagePlaceholderId || 'product-1');
+
+  const handleSave = () => {
+    onSave({
+      name,
+      description,
+      price,
+      stock,
+      imagePlaceholderId,
+    } as Product);
+    setIsOpen(false);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{product ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+          <DialogDescription>
+            {product ? 'Update the details for this product.' : 'Fill in the details for the new product.'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="name" className="text-right">
+              Name
+            </Label>
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="description" className="text-right">
+              Description
+            </Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="price" className="text-right">
+              Price (₦)
+            </Label>
+            <Input
+              id="price"
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(Number(e.target.value))}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="stock" className="text-right">
+              Stock
+            </Label>
+            <Input
+              id="stock"
+              type="number"
+              value={stock}
+              onChange={(e) => setStock(Number(e.target.value))}
+              className="col-span-3"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleSave}>Save changes</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteProductDialog({ onDelete }: { onDelete: () => void }) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+          Delete
+        </DropdownMenuItem>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete this product.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onDelete} className="bg-destructive hover:bg-destructive/90">
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 export default function InventoryPage() {
+  const firestore = useFirestore();
+  const productsQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'products') : null),
+    [firestore]
+  );
+  const { data: products, isLoading } = useCollection<Product>(productsQuery);
+
+  const handleSaveProduct = (productData: Product) => {
+    console.log('Saving product:', productData);
+    // Logic to save to Firestore will be added here
+  };
+
+  const handleUpdateProduct = (productId: string, productData: Product) => {
+    console.log('Updating product:', productId, productData);
+    // Logic to update in Firestore will be added here
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    console.log('Deleting product:', productId);
+    // Logic to delete from Firestore will be added here
+  };
+
   return (
     <div className="flex-1 space-y-4 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Inventory Management</h2>
-          <p className="text-muted-foreground">
-            Here's a list of all products in your inventory.
-          </p>
+          <p className="text-muted-foreground">Here's a list of all products in your inventory.</p>
         </div>
-        <Button>
+        <ProductDialog onSave={handleSaveProduct}>
+          <Button>
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Product
-        </Button>
+          </Button>
+        </ProductDialog>
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Products</CardTitle>
-          <CardDescription>
-            Manage your products and view their sales performance.
-          </CardDescription>
+          <CardDescription>Manage your products and view their sales performance.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -61,61 +222,87 @@ export default function InventoryPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Price</TableHead>
-                <TableHead className="hidden md:table-cell">
-                  Stock
-                </TableHead>
+                <TableHead className="hidden md:table-cell">Stock</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => {
-                const image = placeholderImages.find(
-                  (p) => p.id === product.imagePlaceholderId
-                );
-                return (
-                  <TableRow key={product.id}>
+              {isLoading &&
+                [...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
                     <TableCell className="hidden sm:table-cell">
-                      {image && (
-                        <Image
-                          alt={product.name}
-                          className="aspect-square rounded-md object-cover"
-                          height="64"
-                          src={image.imageUrl}
-                          width="64"
-                          data-ai-hint={image.imageHint}
-                        />
-                      )}
+                      <Skeleton className="h-[64px] w-[64px] rounded-md" />
                     </TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
-                      <Badge variant={product.stock > 0 ? "default" : "destructive"} className={product.stock > 20 ? "" : product.stock > 0 ? "bg-yellow-500" : ""}>
-                        {product.stock > 20 ? 'In Stock' : product.stock > 0 ? 'Low Stock' : 'Out of Stock'}
-                      </Badge>
+                      <Skeleton className="h-4 w-32" />
                     </TableCell>
-                    <TableCell>₦{product.price.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {product.stock}
+                      <Skeleton className="h-4 w-12" />
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem>Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Skeleton className="h-8 w-8" />
                     </TableCell>
                   </TableRow>
-                );
-              })}
+                ))}
+              {products &&
+                products.map((product) => {
+                  const image = placeholderImages.find((p) => p.id === product.imagePlaceholderId);
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell className="hidden sm:table-cell">
+                        {image && (
+                          <Image
+                            alt={product.name}
+                            className="aspect-square rounded-md object-cover"
+                            height="64"
+                            src={image.imageUrl}
+                            width="64"
+                            data-ai-hint={image.imageHint}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={product.stock > 0 ? 'default' : 'destructive'}
+                          className={product.stock > 20 ? '' : product.stock > 0 ? 'bg-yellow-500' : ''}
+                        >
+                          {product.stock > 20 ? 'In Stock' : product.stock > 0 ? 'Low Stock' : 'Out of Stock'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>₦{product.price.toFixed(2)}</TableCell>
+                      <TableCell className="hidden md:table-cell">{product.stock}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <ProductDialog
+                              product={product}
+                              onSave={(data) => handleUpdateProduct(product.id, data)}
+                            >
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit</DropdownMenuItem>
+                            </ProductDialog>
+                            <DeleteProductDialog onDelete={() => handleDeleteProduct(product.id)} />
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
             </TableBody>
           </Table>
         </CardContent>
