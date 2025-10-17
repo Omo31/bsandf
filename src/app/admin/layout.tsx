@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, ShoppingCart, ListOrdered, Settings, Wand2, BarChart, MessageSquare, LayoutDashboard } from 'lucide-react';
+import { Home, Users, ShoppingCart, ListOrdered, Settings, Wand2, BarChart, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   SidebarProvider,
@@ -23,7 +23,6 @@ const navLinks = [
   { href: '/admin/users', label: 'User Management', icon: Users },
   { href: '/admin/inventory', label: 'Inventory', icon: ShoppingCart },
   { href: '/admin/orders', label: 'Order Management', icon: ListOrdered },
-  { href: '/admin/chat', label: 'Chat', icon: MessageSquare },
   { href: '/admin/homepage-settings', label: 'Homepage Settings', icon: LayoutDashboard },
   { href: '/admin/custom-order-settings', label: 'Custom Orders', icon: Settings },
   { href: '/admin/flyer-generator', label: 'AI Flyer Generator', icon: Wand2 },
@@ -78,5 +77,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </SidebarProvider>
   );
 }
-
-    

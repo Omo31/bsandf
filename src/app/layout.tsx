@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
-import { ChatWidget } from '@/components/chat-widget';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
@@ -32,7 +31,6 @@ export default function RootLayout({
             <Footer />
           </div>
           <Toaster />
-          <ChatWidget />
         </FirebaseClientProvider>
       </body>
     </html>
