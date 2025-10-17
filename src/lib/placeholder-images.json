@@ -1,3 +1,88 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-1",
+      "description": "A vibrant and fresh flat lay of various vegetables and fruits on a wooden table.",
+      "imageUrl": "https://picsum.photos/seed/bsf-hero/1920/1080",
+      "imageHint": "food market"
+    },
+    {
+      "id": "flyer-1",
+      "description": "A stylized graphic for a food promotion.",
+      "imageUrl": "https://picsum.photos/seed/bsf-flyer1/600/400",
+      "imageHint": "food advertisement"
+    },
+    {
+      "id": "product-1",
+      "description": "Fresh organic tomatoes on the vine.",
+      "imageUrl": "https://picsum.photos/seed/prod1/400/300",
+      "imageHint": "fresh tomatoes"
+    },
+    {
+      "id": "product-2",
+      "description": "A loaf of crusty sourdough bread.",
+      "imageUrl": "https://picsum.photos/seed/prod2/400/300",
+      "imageHint": "sourdough bread"
+    },
+    {
+      "id": "product-3",
+      "description": "A block of artisanal cheddar cheese.",
+      "imageUrl": "https://picsum.photos/seed/prod3/400/300",
+      "imageHint": "artisanal cheese"
+    },
+    {
+      "id": "product-4",
+      "description": "A bottle of extra virgin olive oil.",
+      "imageUrl": "https://picsum.photos/seed/prod4/400/300",
+      "imageHint": "olive oil"
+    },
+    {
+      "id": "product-5",
+      "description": "Fresh basil leaves.",
+      "imageUrl": "https://picsum.photos/seed/prod5/400/300",
+      "imageHint": "fresh basil"
+    },
+    {
+      "id": "product-6",
+      "description": "A dozen free-range eggs in a carton.",
+      "imageUrl": "https://picsum.photos/seed/prod6/400/300",
+      "imageHint": "free-range eggs"
+    },
+    {
+      "id": "product-7",
+      "description": "A selection of colorful bell peppers.",
+      "imageUrl": "https://picsum.photos/seed/prod7/400/300",
+      "imageHint": "bell peppers"
+    },
+    {
+      "id": "product-8",
+      "description": "A bunch of organic carrots.",
+      "imageUrl": "https://picsum.photos/seed/prod8/400/300",
+      "imageHint": "organic carrots"
+    },
+    {
+      "id": "rec-1",
+      "description": "A bottle of balsamic vinegar.",
+      "imageUrl": "https://picsum.photos/seed/rec1/400/300",
+      "imageHint": "balsamic vinegar"
+    },
+    {
+      "id": "rec-2",
+      "description": "A jar of organic honey.",
+      "imageUrl": "https://picsum.photos/seed/rec2/400/300",
+      "imageHint": "organic honey"
+    },
+    {
+      "id": "rec-3",
+      "description": "A bag of quinoa.",
+      "imageUrl": "https://picsum.photos/seed/rec3/400/300",
+      "imageHint": "quinoa"
+    },
+    {
+      "id": "rec-4",
+      "description": "A selection of gourmet mushrooms.",
+      "imageUrl": "https://picsum.photos/seed/rec4/400/300",
+      "imageHint": "gourmet mushrooms"
+    }
+  ]
 }

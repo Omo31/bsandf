@@ -1,0 +1,32 @@
+export type Product = {
+  id: string;
+  name: string;
+  price: number;
+  description: string;
+  stock: number;
+  imagePlaceholderId: string;
+};
+
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'user';
+  lastSeen: string;
+};
+
+export type Order = {
+  id: string;
+  userId: string;
+  date: string;
+  total: number;
+  status: 'Accepted' | 'Canceled' | 'Draft' | 'Processing' | 'Shipped';
+  items: CartItem[];
+};
+
+export type CartItem = {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+};
