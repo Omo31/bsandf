@@ -79,7 +79,7 @@ function CheckoutForm() {
         userId: user.uid,
         orderDate: new Date().toISOString(),
         status: 'Pending Admin Review',
-        items: cartItems.map(({ id, ...rest }) => rest), // Remove firestore ID from cart items
+        items: cartItems.map(({ id, userId, ...rest }) => rest), // pass full item data, remove firestore and user id
         shippingAddress: shippingAddress,
         subTotal: subTotal,
         serviceCharge: serviceCharge,
