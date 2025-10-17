@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FirebaseError } from 'firebase/app';
 import { setDoc, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface UserAuthFormProps {
   formType: 'login' | 'signup';
@@ -43,6 +44,8 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
   const [lastName, setLastName] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
 
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -239,7 +242,19 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
               required
             />
           </div>
-          
+
+          {!isLogin && (
+            <div className="flex items-center space-x-2">
+              <Checkbox id="terms" onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} />
+              <Label htmlFor="terms" className="text-sm text-muted-foreground">
+                I agree to the{' '}
+                <Link href="/terms" className="underline hover:text-primary">
+                  Terms and Conditions
+                </Link>
+              </Label>
+            </div>
+          )}
+           
            <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
@@ -262,7 +277,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
 
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || (!isLogin && !agreedToTerms)}>
             {isLoading && <Loader2 className="animate-spin" />}
             {!isLoading && (isLogin ? 'Sign In' : 'Create Account')}
           </Button>
