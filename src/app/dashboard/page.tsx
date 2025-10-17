@@ -69,7 +69,7 @@ export default function UserDashboardPage() {
                 <div>
                      <div className="flex justify-between items-center mb-4">
                         <div>
-                            <p className="font-semibold">Status: <Badge>{recentOrder.status}</Badge></p>
+                            <div className="font-semibold">Status: <Badge>{recentOrder.status}</Badge></div>
                             <p className="text-sm text-muted-foreground">Date: {new Date(recentOrder.date).toLocaleDateString()}</p>
                         </div>
                         <p className="text-xl font-bold">₦{recentOrder.total.toFixed(2)}</p>
