@@ -56,8 +56,7 @@ export default function AdminChatPage() {
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
 
-    // Secure query for messages sent by the admin to the selected user
-    const messagesSentByAdminQuery = useMemoFirebase(() => {
+    const sentMessagesQuery = useMemoFirebase(() => {
         if (!adminUser || !selectedUserId || !firestore) return null;
         return query(
             collection(firestore, 'chat_messages'),
@@ -66,8 +65,7 @@ export default function AdminChatPage() {
         );
     }, [adminUser, selectedUserId, firestore]);
 
-    // Secure query for messages received by the admin from the selected user
-    const messagesReceivedByAdminQuery = useMemoFirebase(() => {
+    const receivedMessagesQuery = useMemoFirebase(() => {
         if (!adminUser || !selectedUserId || !firestore) return null;
         return query(
             collection(firestore, 'chat_messages'),
@@ -76,8 +74,8 @@ export default function AdminChatPage() {
         );
     }, [adminUser, selectedUserId, firestore]);
     
-    const { data: sentMessages, isLoading: isLoadingSent } = useCollection<ChatMessage>(messagesSentByAdminQuery);
-    const { data: receivedMessages, isLoading: isLoadingReceived } = useCollection<ChatMessage>(messagesReceivedByAdminQuery);
+    const { data: sentMessages, isLoading: isLoadingSent } = useCollection<ChatMessage>(sentMessagesQuery);
+    const { data: receivedMessages, isLoading: isLoadingReceived } = useCollection<ChatMessage>(receivedMessagesQuery);
 
     const areMessagesLoading = isLoadingSent || isLoadingReceived;
 

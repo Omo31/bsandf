@@ -25,36 +25,34 @@ export function ChatWidget() {
   // This is a placeholder admin ID. In a real app, you might fetch this dynamically.
   const adminId = 'beautifulsoup-admin'; 
 
-  // Secure query for messages sent by the user to the admin
-  const messagesSentQuery = useMemoFirebase(() => {
+  const sentMessagesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
-        collection(firestore, 'chat_messages'),
-        where('senderId', '==', user.uid),
-        where('receiverId', '==', adminId)
+      collection(firestore, 'chat_messages'),
+      where('senderId', '==', user.uid),
+      where('receiverId', '==', adminId)
     );
   }, [user, firestore]);
 
-  // Secure query for messages received by the user from the admin
-  const messagesReceivedQuery = useMemoFirebase(() => {
+  const receivedMessagesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
-        collection(firestore, 'chat_messages'),
-        where('senderId', '==', adminId),
-        where('receiverId', '==', user.uid)
+      collection(firestore, 'chat_messages'),
+      where('senderId', '==', adminId),
+      where('receiverId', '==', user.uid)
     );
   }, [user, firestore]);
-  
-  const { data: sentMessages, isLoading: isLoadingSent } = useCollection<ChatMessage>(messagesSentQuery);
-  const { data: receivedMessages, isLoading: isLoadingReceived } = useCollection<ChatMessage>(messagesReceivedQuery);
+
+  const { data: sentMessages, isLoading: isLoadingSent } = useCollection<ChatMessage>(sentMessagesQuery);
+  const { data: receivedMessages, isLoading: isLoadingReceived } = useCollection<ChatMessage>(receivedMessagesQuery);
+
   const areMessagesLoading = isLoadingSent || isLoadingReceived;
 
   const activeMessages = useMemo(() => {
-      if (!sentMessages && !receivedMessages) return [];
-      const allMessages = [...(sentMessages || []), ...(receivedMessages || [])];
-      return allMessages.sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
+    if (!sentMessages && !receivedMessages) return [];
+    const allMessages = [...(sentMessages || []), ...(receivedMessages || [])];
+    return allMessages.sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
   }, [sentMessages, receivedMessages]);
-
 
   useEffect(() => {
     if (isUserLoading) return;
