@@ -36,25 +36,39 @@ export function ChatWidget() {
     }
   }, [isUserLoading, user]);
 
-  const messagesQuery = useMemoFirebase(() => {
-    if (!user || isUserLoading) return null;
+  const messagesSentQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
     return query(
         collection(firestore, 'chat_messages'),
-        where('senderId', 'in', [user.uid, adminId]),
-        where('receiverId', 'in', [user.uid, adminId]),
-        orderBy('timestamp')
+        where('senderId', '==', user.uid),
+        where('receiverId', '==', adminId)
     );
-  }, [user, isUserLoading, firestore, adminId]);
+  }, [user, firestore, adminId]);
 
-  const { data: messages } = useCollection<ChatMessage>(messagesQuery);
+  const messagesReceivedQuery = useMemoFirebase(() => {
+      if (!user || !firestore) return null;
+      return query(
+          collection(firestore, 'chat_messages'),
+          where('senderId', '==', adminId),
+          where('receiverId', '==', user.uid)
+      );
+  }, [user, firestore, adminId]);
+
+  const { data: sentMessages } = useCollection<ChatMessage>(messagesSentQuery);
+  const { data: receivedMessages } = useCollection<ChatMessage>(messagesReceivedQuery);
 
   const activeMessages = useMemo(() => {
-      if (!messages || !user) return [];
-      return messages.filter(msg =>
-          (msg.senderId === user.uid && msg.receiverId === adminId) ||
-          (msg.senderId === adminId && msg.receiverId === user.uid)
-      );
-  }, [messages, user, adminId]);
+      if (!sentMessages && !receivedMessages) return [];
+      const allMessages = [...(sentMessages || []), ...(receivedMessages || [])];
+      // Sort messages by timestamp. Make sure timestamp is a comparable value.
+      return allMessages.sort((a, b) => {
+        if (a.timestamp && b.timestamp) {
+            // Assuming timestamp is a Firestore Timestamp object
+            return a.timestamp.seconds - b.timestamp.seconds;
+        }
+        return 0;
+      });
+  }, [sentMessages, receivedMessages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +114,10 @@ export function ChatWidget() {
     setShowPopup(false);
   }
 
-  if (!user) return null; // Don't show chat widget if user is not logged in
+  // Only show the widget if the user is logged in
+  if (isUserLoading || !user) {
+    return null;
+  }
 
   return (
     <>
