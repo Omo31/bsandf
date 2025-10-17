@@ -37,22 +37,22 @@ export function ChatWidget() {
   }, [isUserLoading, user]);
 
   const sentMessagesQuery = useMemoFirebase(() => {
-    if (!user || !firestore || isUserLoading) return null;
+    if (!user || !firestore) return null;
     return query(
         collection(firestore, 'chat_messages'),
         where('senderId', '==', user.uid),
         where('receiverId', '==', adminId)
     );
-  }, [user, firestore, isUserLoading, adminId]);
+  }, [user, firestore, adminId]);
 
   const receivedMessagesQuery = useMemoFirebase(() => {
-      if (!user || !firestore || isUserLoading) return null;
+      if (!user || !firestore) return null;
       return query(
           collection(firestore, 'chat_messages'),
           where('senderId', '==', adminId),
           where('receiverId', '==', user.uid)
       );
-  }, [user, firestore, isUserLoading, adminId]);
+  }, [user, firestore, adminId]);
 
   const { data: sentMessages } = useCollection<ChatMessage>(sentMessagesQuery);
   const { data: receivedMessages } = useCollection<ChatMessage>(receivedMessagesQuery);

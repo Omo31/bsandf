@@ -13,7 +13,7 @@ import { Send, Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import type { ChatMessage, User, WithId } from '@/lib/types';
+import type { ChatMessage, User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
@@ -47,9 +47,10 @@ export default function AdminChatPage() {
     const firestore = useFirestore();
 
     const usersQuery = useMemoFirebase(() => {
-        if (!adminUser || !firestore || isAdminLoading) return null;
+        if (!firestore) return null;
         return query(collection(firestore, 'users'), where('role', '==', 'user'))
-    }, [adminUser, firestore, isAdminLoading]);
+    }, [firestore]);
+
     const { data: users, isLoading: areUsersLoading } = useCollection<User>(usersQuery);
 
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
