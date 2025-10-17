@@ -12,6 +12,7 @@ import {
   ListOrdered,
   LogOut,
   Menu,
+  Bell,
 } from 'lucide-react';
 import { Logo } from '@/components/icons';
 import {
@@ -126,6 +127,13 @@ export default function Header() {
               <Search className="h-5 w-5 text-muted-foreground" />
             </span>
           </div>
+           
+          <Button asChild variant="ghost" size="icon">
+            <Link href="/dashboard/notifications">
+              <Bell className="h-5 w-5" />
+              <span className="sr-only">Notifications</span>
+            </Link>
+          </Button>
 
           <Button asChild variant="ghost" size="icon">
             <Link href="/cart">
@@ -134,7 +142,7 @@ export default function Header() {
             </Link>
           </Button>
 
-          {isAuthenticated ? (
+          {isClient && isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="hidden md:inline-flex">
@@ -178,9 +186,11 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
+            isClient && (
              <Button asChild className="hidden md:inline-flex">
               <Link href="/login">Login</Link>
             </Button>
+            )
           )}
 
         </div>
