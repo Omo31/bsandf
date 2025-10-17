@@ -36,7 +36,7 @@ export function ChatWidget() {
     }
   }, [isUserLoading, user]);
 
-  // Secure query for messages sent by the user
+  // Secure query for messages sent by the user to the admin
   const messagesSentQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
@@ -47,7 +47,7 @@ export function ChatWidget() {
     );
   }, [user, firestore, adminId]);
 
-  // Secure query for messages received by the user
+  // Secure query for messages received by the user from the admin
   const messagesReceivedQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
@@ -181,6 +181,7 @@ export function ChatWidget() {
                         <ChatMessageDisplay key={msg.id} author={msg.senderId} message={msg.message} currentUserId={user.uid} />
                      ))}
                      {areMessagesLoading && <p className="text-xs text-center text-muted-foreground">Loading messages...</p>}
+                     {!user && <p className="text-xs text-center text-muted-foreground">Please log in to see your messages.</p>}
                   </div>
                 </ScrollArea>
               </CardContent>

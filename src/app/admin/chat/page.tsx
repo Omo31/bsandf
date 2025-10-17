@@ -56,7 +56,7 @@ export default function AdminChatPage() {
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
 
-    // Secure queries for messages
+    // Secure query for messages sent by the admin to the selected user
     const messagesSentByAdminQuery = useMemoFirebase(() => {
         if (!adminUser || !selectedUserId || !firestore) return null;
         return query(
@@ -67,6 +67,7 @@ export default function AdminChatPage() {
         );
     }, [adminUser, selectedUserId, firestore]);
 
+    // Secure query for messages received by the admin from the selected user
     const messagesReceivedByAdminQuery = useMemoFirebase(() => {
         if (!adminUser || !selectedUserId || !firestore) return null;
         return query(
@@ -84,6 +85,7 @@ export default function AdminChatPage() {
 
     const activeMessages = useMemo(() => {
         if (!sentMessages || !receivedMessages) return [];
+        // Combine and sort messages from both queries
         return [...sentMessages, ...receivedMessages].sort((a, b) => a.timestamp?.toMillis() - b.timestamp?.toMillis());
     }, [sentMessages, receivedMessages]);
     
