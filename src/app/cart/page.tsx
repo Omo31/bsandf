@@ -108,9 +108,11 @@ export default function CartPage() {
               </div>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-              <Button className="w-full" disabled={cart.length === 0}>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Proceed to Checkout
+              <Button className="w-full" disabled={cart.length === 0} asChild>
+                <Link href={`/checkout?amount=${total.toFixed(2)}`}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Proceed to Checkout
+                </Link>
               </Button>
               <Button variant="outline" className="w-full" asChild>
                 <Link href="/">Continue Shopping</Link>

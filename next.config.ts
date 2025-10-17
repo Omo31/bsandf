@@ -30,6 +30,23 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Allow scripts from Paystack
+  experimental: {
+    scriptingEnabled: true,
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.paystack.co",
+          },
+        ],
+      },
+    ]
+  },
 };
 
 export default nextConfig;
