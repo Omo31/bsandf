@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, ShoppingCart, ListOrdered, Settings, Wand2, BarChart, LayoutDashboard, Loader2 } from 'lucide-react';
+import { Home, Users, ShoppingCart, ListOrdered, Settings, Wand2, BarChart, LayoutDashboard, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   SidebarProvider,
