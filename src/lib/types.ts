@@ -19,7 +19,7 @@ export type User = {
   shippingAddress?: string;
   phoneNumber?: string;
   createdAt: any; // Can be Firestore's Timestamp
-  role: 'admin' | 'user';
+  role: 'owner' | 'user';
 };
 
 

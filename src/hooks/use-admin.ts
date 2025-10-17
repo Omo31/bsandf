@@ -26,8 +26,8 @@ export function useAdmin() {
     // The `true` argument is essential here.
     user.getIdTokenResult(true)
       .then((idTokenResult) => {
-        // Check for the admin claim. It's a boolean on the claims object.
-        if (idTokenResult.claims.admin === true) {
+        // Check for the 'owner' role claim.
+        if (idTokenResult.claims.role === 'owner') {
           setIsAdmin(true);
         } else {
           setIsAdmin(false);

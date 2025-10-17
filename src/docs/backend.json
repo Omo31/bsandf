@@ -26,8 +26,8 @@
         },
         "role": {
           "type": "string",
-          "description": "Role of the user (e.g., admin, user).",
-          "enum": ["admin", "user"]
+          "description": "Role of the user (e.g., owner, user).",
+          "enum": ["owner", "user"]
         },
         "shippingAddress": {
           "type": "string",
@@ -374,7 +374,7 @@
           "schema": {
             "$ref": "#/entities/User"
           },
-          "description": "Stores user profiles, accessible by the user and admins.",
+          "description": "Stores user profiles, accessible by the user and owners.",
           "params": [
             {
               "name": "userId",
@@ -390,7 +390,7 @@
           "schema": {
             "$ref": "#/entities/Product"
           },
-          "description": "Stores product information, accessible for reading by all users, but writable only by admins.",
+          "description": "Stores product information, accessible for reading by all users, but writable only by owners.",
           "params": [
             {
               "name": "productId",
@@ -406,7 +406,7 @@
           "schema": {
             "$ref": "#/entities/Order"
           },
-          "description": "Stores orders placed by users. Accessible by the user and admins.",
+          "description": "Stores orders placed by users. Accessible by the user and owners.",
           "params": [
             {
               "name": "userId",
@@ -426,7 +426,7 @@
           "schema": {
             "$ref": "#/entities/CartItem"
           },
-          "description": "Stores cart items for each user. Accessible only by the user and admins.",
+          "description": "Stores cart items for each user. Accessible only by the user and owners.",
           "params": [
             {
               "name": "userId",
@@ -446,7 +446,7 @@
           "schema": {
             "$ref": "#/entities/Flyer"
           },
-          "description": "Stores flyer information, accessible for reading by all users, but writable only by admins.",
+          "description": "Stores flyer information, accessible for reading by all users, but writable only by owners.",
           "params": [
             {
               "name": "flyerId",
@@ -462,7 +462,7 @@
           "schema": {
             "$ref": "#/entities/ServiceChecklistItem"
           },
-          "description": "Stores service checklist items for custom orders. Accessible by the user and admins.",
+          "description": "Stores service checklist items for custom orders. Accessible by the user and owners.",
           "params": [
             {
               "name": "userId",
@@ -506,7 +506,7 @@
           "schema": {
             "$ref": "#/entities/HomePageSettings"
           },
-          "description": "Stores global application settings. Writable only by admins.",
+          "description": "Stores global application settings. Writable only by owners.",
           "params": [
             {
               "name": "settingId",
@@ -516,6 +516,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features, focusing on security, scalability, and debuggability. User data, products, orders, cart items, flyers, service checklist items, and general settings are organized into collections that align with access patterns and business requirements.\n\n1.  **Authorization Independence:** User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization. This simplifies security rules.\n\n2.  **Structural Segregation:** Different data types with distinct access requirements are stored in separate collections.  User profiles are kept in `/users/{userId}`, while products are in `/products`. A `/settings` collection is added for site-wide configurations. This separation simplifies security rules by ensuring that all documents within a collection share the same access control logic.\n\n3.  **Access Modeling:** Path-based ownership is used extensively for user-owned data. For example, orders are stored under `/users/{userId}/orders/{orderId}`, ensuring that only the user and admins can access specific order information. Admin role is managed via a custom claim on the user's auth token, which is the most secure and efficient method.\n\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations by segregating data based on access levels and using path-based authorization.  For example, listing orders under `/users/{userId}/orders` is secure because the path inherently restricts access to the user's own orders. The global flyers are stored in `/flyers` which will support a public list, and can be updated by admins only. The `/settings` collection is readable by all but only writable by admins.\n\nThis design ensures that security rules can be written clearly and efficiently without relying on complex data hierarchies or server-side filtering, promoting a more secure and scalable application."
+    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features. The new security model is based on an 'owner' role. User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization for the user themselves, while the 'owner' role grants global access. This separation simplifies security rules. The owner role is managed via a custom claim on the user's auth token, which is the most secure and efficient method. This design ensures that security rules can be written clearly and efficiently, promoting a more secure and scalable application."
   }
 }
