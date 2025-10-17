@@ -122,8 +122,8 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
             // 1. Create the user in Auth
             const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
             
-            // 2. Set their display name in Auth. This is a separate step.
-            // The onUserCreate backend function will use this displayName to populate Firestore.
+            // 2. Set their display name in Auth. The `createFirestoreUser` Cloud Function will
+            // be triggered on user creation and use this display name to create the Firestore doc.
             await updateProfile(userCredential.user, {
                 displayName: `${values.firstName} ${values.lastName}`
             });
@@ -334,4 +334,3 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
     </Card>
   );
 }
-    

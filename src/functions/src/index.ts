@@ -17,7 +17,6 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const { uid, email, displayName } = user;
 
   const userRef = db.collection('users').doc(uid);
-  const usersCollectionRef = db.collection('users');
 
   // Split displayName into firstName and lastName, with fallbacks.
   const nameParts = displayName?.split(' ') || [];
@@ -25,21 +24,19 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
-    // Check if this is the first user by counting existing documents.
-    // This is more reliable than checking size <= 1 in a transaction.
-    const userCountSnapshot = await usersCollectionRef.limit(2).get();
-    const isFirstUser = userCountSnapshot.size <= 1;
-
+    // Determine user role.
     let userRole = 'user';
-    
-    if (isFirstUser) {
-        userRole = 'owner';
-        console.log(`First user detected. Granting 'owner' role via custom claim to ${uid}.`);
-        // Set a custom claim on the user's auth token
-        await admin.auth().setCustomUserClaims(uid, { role: 'owner' });
-    }
+    const usersCollectionRef = db.collection('users');
+    const userCountSnapshot = await usersCollectionRef.limit(2).get();
 
-    // Create the user document in Firestore
+    // If there are no existing user documents, this is the first user.
+    if (userCountSnapshot.empty) {
+      userRole = 'owner';
+      console.log(`First user detected. Granting 'owner' role via custom claim to ${uid}.`);
+      await admin.auth().setCustomUserClaims(uid, { role: 'owner' });
+    }
+    
+    // Create the user document in Firestore.
     await userRef.set({
         uid: uid,
         email: email || '',
@@ -49,12 +46,12 @@ export const createFirestoreUser = onUserCreate(async (event) => {
         shippingAddress: '',
         phoneNumber: '',
         createdAt: FieldValue.serverTimestamp(),
-    }, { merge: true }); // Use merge:true to be safe, though set should be fine for new doc
+    });
     
     console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
 
   } catch (error) {
-    console.error(`Error creating user document for ${uid}:`, error);
+    console.error(`Error in createFirestoreUser for ${uid}:`, error);
   }
 });
 
