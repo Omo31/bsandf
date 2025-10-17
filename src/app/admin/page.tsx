@@ -21,20 +21,12 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Line, LineChart } from 'recharts';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, collectionGroup } from 'firebase/firestore';
-import type { Order, User } from '@/lib/types';
+import type { Order } from '@/lib/types';
 import { useMemo } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const chartConfig = {
-  desktop: {
-    label: 'Desktop',
-    color: 'hsl(var(--chart-1))',
-  },
-  mobile: {
-    label: 'Mobile',
-    color: 'hsl(var(--chart-2))',
-  },
-   sales: {
+  sales: {
     label: 'Sales',
     color: 'hsl(var(--chart-1))',
   }
@@ -48,20 +40,13 @@ export default function AdminDashboardPage() {
     return query(collectionGroup(firestore, 'orders'));
   }, [firestore]);
   
-  const usersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'users');
-  }, [firestore]);
-
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
-  const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
 
   const stats = useMemo(() => {
-    if (!orders || !users) {
+    if (!orders) {
       return {
         totalRevenue: 0,
         sales: 0,
-        newUsers: 0,
         salesByMonth: [],
       };
     }
@@ -69,7 +54,6 @@ export default function AdminDashboardPage() {
     const completedOrders = orders.filter(o => o.status === 'Accepted' || o.status === 'Shipped' || o.status === 'Processing');
     const totalRevenue = completedOrders.reduce((acc, order) => acc + (order.totalAmount || 0), 0);
     const sales = completedOrders.length;
-    const newUsers = users.length;
 
     const salesByMonth = completedOrders.reduce((acc, order) => {
         const month = new Date(order.orderDate).toLocaleString('default', { month: 'short', year: 'numeric' });
@@ -83,10 +67,10 @@ export default function AdminDashboardPage() {
     }, [] as { date: string; sales: number }[]).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
 
-    return { totalRevenue, sales, newUsers, salesByMonth };
-  }, [orders, users]);
+    return { totalRevenue, sales, salesByMonth };
+  }, [orders]);
   
-  const isLoading = isLoadingOrders || isLoadingUsers;
+  const isLoading = isLoadingOrders;
 
   if (isLoading) {
       return (
@@ -95,7 +79,7 @@ export default function AdminDashboardPage() {
         <Skeleton className="h-9 w-1/3" />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
+        {[...Array(3)].map((_, i) => (
             <Card key={i}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <Skeleton className="h-4 w-1/2" />
@@ -108,22 +92,13 @@ export default function AdminDashboardPage() {
             </Card>
         ))}
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+      <div className="grid gap-4">
         <Card className="col-span-4">
           <CardHeader>
              <Skeleton className="h-6 w-1/4" />
              <Skeleton className="h-4 w-1/2" />
           </CardHeader>
           <CardContent className="pl-2">
-            <Skeleton className="h-[350px] w-full" />
-          </CardContent>
-        </Card>
-        <Card className="col-span-3">
-          <CardHeader>
-            <Skeleton className="h-6 w-1/3" />
-            <Skeleton className="h-4 w-3/4" />
-          </CardHeader>
-          <CardContent>
             <Skeleton className="h-[350px] w-full" />
           </CardContent>
         </Card>
@@ -137,7 +112,7 @@ export default function AdminDashboardPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Admin Dashboard</h2>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -146,16 +121,6 @@ export default function AdminDashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">₦{stats.totalRevenue.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">From completed sales</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{stats.newUsers}</div>
-             <p className="text-xs text-muted-foreground">Total registered users</p>
           </CardContent>
         </Card>
         <Card>
@@ -179,8 +144,8 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+      <div className="grid gap-4">
+        <Card>
           <CardHeader>
             <CardTitle>Overview</CardTitle>
              <CardDescription>Monthly revenue trends from completed orders.</CardDescription>
@@ -226,36 +191,6 @@ export default function AdminDashboardPage() {
                     }}
                   />
                 </LineChart>
-              </ChartContainer>
-          </CardContent>
-        </Card>
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>User Demographics</CardTitle>
-            <CardDescription>User access by device (mock data).</CardDescription>
-          </CardHeader>
-          <CardContent>
-              <ChartContainer config={chartConfig} className="h-[350px] w-full">
-                <BarChart accessibilityLayer data={[
-                    { month: 'January', desktop: 186, mobile: 80 },
-                    { month: 'February', desktop: 305, mobile: 200 },
-                    { month: 'March', desktop: 237, mobile: 120 },
-                    { month: 'April', desktop: 73, mobile: 190 },
-                    { month: 'May', desktop: 209, mobile: 130 },
-                    { month: 'June', desktop: 214, mobile: 140 },
-                ]}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                  />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
-                  <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
-                </BarChart>
               </ChartContainer>
           </CardContent>
         </Card>
