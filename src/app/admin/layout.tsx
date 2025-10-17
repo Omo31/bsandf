@@ -2,51 +2,77 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Home } from 'lucide-react';
+import { Home, Users, ShoppingCart, ListOrdered, Settings, Wand2, BarChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarTrigger,
+  SidebarInset,
+} from '@/components/ui/sidebar';
+import { Logo } from '@/components/icons';
 
 const navLinks = [
-  { href: '/admin', label: 'Summary' },
-  { href: '/admin/users', label: 'User Management' },
-  { href: '/admin/inventory', label: 'Inventory' },
-  { href: '/admin/orders', label: 'Order Management' },
-  { href: '/admin/custom-order-settings', label: 'Custom Orders'},
-  { href: '/admin/flyer-generator', label: 'AI Flyer Generator' },
+  { href: '/admin', label: 'Summary', icon: BarChart },
+  { href: '/admin/users', label: 'User Management', icon: Users },
+  { href: '/admin/inventory', label: 'Inventory', icon: ShoppingCart },
+  { href: '/admin/orders', label: 'Order Management', icon: ListOrdered },
+  { href: '/admin/custom-order-settings', label: 'Custom Orders', icon: Settings },
+  { href: '/admin/flyer-generator', label: 'AI Flyer Generator', icon: Wand2 },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-col min-h-screen">
-       <header className="sticky top-0 z-40 w-full border-b bg-background">
-        <div className="container flex h-16 items-center space-x-4 sm:justify-between sm:space-x-0">
-          <div className="flex gap-6 md:gap-10">
-             <h1 className="text-lg font-semibold">Admin Panel</h1>
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <div className="flex items-center gap-2">
+            <Logo className="w-7 h-7 text-primary" />
+            <span className="text-lg font-semibold">Admin Panel</span>
           </div>
-           <div className="flex flex-1 items-center justify-end space-x-4">
-            <Button asChild variant="outline">
-                <Link href="/">
-                    <Home className="h-4 w-4 mr-2" />
-                    View Store
-                </Link>
-            </Button>
-          </div>
-        </div>
-      </header>
-      <div className="container flex-1 mt-6">
-        <Tabs value={pathname} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu>
             {navLinks.map((link) => (
-              <TabsTrigger key={link.href} value={link.href} asChild>
-                <Link href={link.href}>{link.label}</Link>
-              </TabsTrigger>
+              <SidebarMenuItem key={link.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === link.href}
+                  tooltip={{ children: link.label }}
+                >
+                  <Link href={link.href}>
+                    <link.icon />
+                    <span>{link.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             ))}
-          </TabsList>
-        </Tabs>
-        <div className="mt-6">{children}</div>
-      </div>
-    </div>
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter>
+          <Button asChild variant="outline" className="w-full justify-start gap-2">
+            <Link href="/">
+              <Home className="h-4 w-4" />
+              <span>View Store</span>
+            </Link>
+          </Button>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <header className="sticky top-0 z-40 w-full border-b bg-background/95 p-2 flex items-center gap-2 md:hidden">
+            <SidebarTrigger />
+            <h1 className="text-lg font-semibold">Admin Panel</h1>
+        </header>
+        <div className="p-4 md:p-6">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
