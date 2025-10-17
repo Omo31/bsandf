@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -34,7 +34,12 @@ const navLinks = [
 
 export default function Header() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const isAuthenticated = true; // Mock authentication state
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleLinkClick = () => {
     setIsSheetOpen(false);
@@ -61,7 +66,54 @@ export default function Header() {
           </nav>
         </div>
         
-        <Link href="/" className="flex items-center space-x-2 md:hidden">
+        {isClient && (
+          <div className="md:hidden">
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" className="px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Toggle Menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="pr-0">
+                 <Link href="/" className="flex items-center space-x-2 mb-6" onClick={handleLinkClick}>
+                    <Logo className="h-6 w-6 text-primary" />
+                    <span className="font-bold">BeautifulSoup&Food</span>
+                </Link>
+                <div className="flex flex-col space-y-4">
+                   {navLinks.map(({ href, label }) => (
+                    <Link key={label} href={href} className="text-sm font-medium" onClick={handleLinkClick}>
+                      {label}
+                    </Link>
+                  ))}
+                  <DropdownMenuSeparator />
+                  {isAuthenticated ? (
+                    <>
+                      <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                      <Link href="/dashboard" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
+                        Dashboard
+                      </Link>
+                      <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
+                        Admin
+                      </Link>
+                       <DropdownMenuSeparator />
+                       <Button variant="ghost" className="justify-start">
+                          <LogOut className="mr-2 h-4 w-4" />
+                          <span>Logout</span>
+                      </Button>
+                    </>
+                  ) : (
+                     <Button asChild>
+                        <Link href="/login">Login</Link>
+                      </Button>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        )}
+        
+        <Link href="/" className="flex items-center space-x-2 md:hidden ml-2">
           <Logo className="h-6 w-6 text-primary" />
           <span className="font-bold">BS&F</span>
         </Link>
@@ -131,48 +183,6 @@ export default function Header() {
             </Button>
           )}
 
-          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" className="px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Toggle Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="pr-0">
-               <Link href="/" className="flex items-center space-x-2 mb-6" onClick={handleLinkClick}>
-                  <Logo className="h-6 w-6 text-primary" />
-                  <span className="font-bold">BeautifulSoup&Food</span>
-              </Link>
-              <div className="flex flex-col space-y-4">
-                 {navLinks.map(({ href, label }) => (
-                  <Link key={label} href={href} className="text-sm font-medium" onClick={handleLinkClick}>
-                    {label}
-                  </Link>
-                ))}
-                <DropdownMenuSeparator />
-                {isAuthenticated ? (
-                  <>
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <Link href="/dashboard" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
-                      Dashboard
-                    </Link>
-                    <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
-                      Admin
-                    </Link>
-                     <DropdownMenuSeparator />
-                     <Button variant="ghost" className="justify-start">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Logout</span>
-                    </Button>
-                  </>
-                ) : (
-                   <Button asChild>
-                      <Link href="/login">Login</Link>
-                    </Button>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
        <div className="container md:hidden pb-2">
