@@ -10,8 +10,8 @@ import { MessageSquare, Send, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
-import type { ChatMessage, WithId } from '@/lib/types';
+import { collection, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 export function ChatWidget() {
@@ -22,6 +22,7 @@ export function ChatWidget() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  // This is a placeholder admin ID. In a real app, you might fetch this dynamically.
   const adminId = 'beautifulsoup-admin'; 
 
   // Secure query for messages sent by the user to the admin
@@ -52,6 +53,7 @@ export function ChatWidget() {
 
   const activeMessages = useMemo(() => {
       if (!sentMessages || !receivedMessages) return [];
+      // Combine and sort messages from both queries
       return [...sentMessages, ...receivedMessages].sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
   }, [sentMessages, receivedMessages]);
 

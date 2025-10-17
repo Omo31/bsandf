@@ -47,9 +47,9 @@ export default function AdminChatPage() {
     const firestore = useFirestore();
 
     const usersQuery = useMemoFirebase(() => {
-        if (!firestore || !adminUser) return null;
+        if (!firestore) return null;
         return query(collection(firestore, 'users'), where('role', '==', 'user'))
-    }, [firestore, adminUser]);
+    }, [firestore]);
 
     const { data: users, isLoading: areUsersLoading } = useCollection<User>(usersQuery);
 
