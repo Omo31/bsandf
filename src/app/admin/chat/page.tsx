@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -17,7 +17,7 @@ import type { ChatMessage, User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
-function ChatMessage({ author, message, avatar }: { author: string; message: string, avatar: string, currentAdminId: string }) {
+function ChatMessage({ author, message, avatar, currentAdminId }: { author: string; message: string, avatar: string, currentAdminId: string }) {
   const isAdmin = author === currentAdminId;
   return (
     <div className={cn('flex items-end gap-2', !isAdmin ? 'justify-start' : 'justify-end')}>
@@ -46,14 +46,18 @@ export default function AdminChatPage() {
     const { user: adminUser, isUserLoading: isAdminLoading } = useUser();
     const firestore = useFirestore();
 
-    const usersQuery = useMemoFirebase(() => query(collection(firestore, 'users'), where('role', '==', 'user')), [firestore]);
+    const usersQuery = useMemoFirebase(() => {
+        // Only fetch users if an admin is logged in and firestore is available
+        if (!adminUser || !firestore) return null;
+        return query(collection(firestore, 'users'), where('role', '==', 'user'))
+    }, [adminUser, firestore]);
     const { data: users, isLoading: areUsersLoading } = useCollection<User>(usersQuery);
 
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
 
     const messagesQuery = useMemoFirebase(() => {
-        if (!adminUser || !selectedUserId) return null;
+        if (!adminUser || !selectedUserId || !firestore) return null;
         return query(
             collection(firestore, 'chat_messages'),
             where('senderId', 'in', [adminUser.uid, selectedUserId]),
@@ -76,7 +80,7 @@ export default function AdminChatPage() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !adminUser || !selectedUserId) return;
+        if (!newMessage.trim() || !adminUser || !selectedUserId || !firestore) return;
 
         const messageData = {
             senderId: adminUser.uid,
@@ -95,15 +99,40 @@ export default function AdminChatPage() {
         }
     };
     
-    // Select the first user by default
-    useState(() => {
+    // Effect to select the first user by default once the user list has loaded
+    useEffect(() => {
         if (users && users.length > 0 && !selectedUserId) {
             setSelectedUserId(users[0].uid);
         }
-    });
+    }, [users, selectedUserId]);
 
     if (isAdminLoading || areUsersLoading) {
-      return <div className="p-6"><Skeleton className="h-[calc(100vh-12rem)] w-full" /></div>;
+      return (
+        <div className="flex-1 space-y-4 pt-6">
+            <div className="flex items-center justify-between space-y-2">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Customer Chat</h2>
+                    <p className="text-muted-foreground">
+                        Respond to customer inquiries in real-time.
+                    </p>
+                </div>
+            </div>
+            <Card className="h-[calc(100vh-12rem)]">
+                <Skeleton className="h-full w-full" />
+            </Card>
+        </div>
+      );
+    }
+    
+    if (!adminUser) {
+        return (
+             <div className="flex-1 space-y-4 pt-6">
+                <h2 className="text-3xl font-bold tracking-tight">Access Denied</h2>
+                <p className="text-muted-foreground">
+                    You must be logged in as an administrator to view this page.
+                </p>
+            </div>
+        )
     }
 
     return (
