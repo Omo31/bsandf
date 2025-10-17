@@ -23,7 +23,7 @@ import {
 } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
 import { FirebaseError } from 'firebase/app';
-import { setDoc, doc } from 'firebase/firestore';
+import { setDoc, doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Checkbox } from '@/components/ui/checkbox';
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -103,7 +103,22 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
                 setIsLoading(false);
                 return;
             }
-            await auth.signInWithEmailAndPassword(email, password);
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+
+            // Check if user document exists, if not create it.
+            const userDocRef = doc(firestore, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (!userDoc.exists()) {
+                await setDoc(userDocRef, {
+                    uid: user.uid,
+                    email: user.email,
+                    firstName: user.displayName?.split(' ')[0] || 'New',
+                    lastName: user.displayName?.split(' ')[1] || 'User',
+                    role: 'user',
+                }, { merge: true });
+            }
+
         } else {
             if (!email || !password || !firstName || !lastName || !shippingAddress || !phoneNumber) {
                  toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill out all required fields.' });

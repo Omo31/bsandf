@@ -51,6 +51,25 @@ export const handleAdminRole = onDocumentWritten('roles_admin/{userId}', async e
     const user: UserRecord = await admin.auth().getUser(userId);
     const currentCustomClaims = user.customClaims || {};
 
+    // Ensure user document exists in Firestore.
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+        const { email, displayName } = user;
+        const nameParts = displayName?.split(' ') || [];
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        await userRef.set({
+            uid: userId,
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            role: 'user',
+            createdAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        console.log(`Created missing user document for ${userId} during admin role handling.`);
+    }
+
     // If a document exists, grant admin role.
     if (afterData) {
       if (currentCustomClaims.admin !== true) {
@@ -241,5 +260,3 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
     console.error('Error sending order status notification:', error);
   }
 });
-
-    
