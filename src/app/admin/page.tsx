@@ -48,21 +48,25 @@ export default function AdminDashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isUserLoading) return;
+    if (isUserLoading) {
+      return; // Wait until user loading is complete
+    }
 
     if (!currentUser) {
       router.push('/login');
-      return;
+      return; // Redirect if not logged in
     }
 
     currentUser.getIdTokenResult().then((idTokenResult) => {
       const isAdminClaim = !!idTokenResult.claims.admin;
-      setIsAdmin(isAdminClaim);
-      if (!isAdminClaim) {
-        router.push('/dashboard');
+      if (isAdminClaim) {
+        setIsAdmin(true);
+      } else {
+        router.push('/dashboard'); // Redirect if not an admin
       }
     });
   }, [currentUser, isUserLoading, router]);
+
 
   const ordersQuery = useMemoFirebase(() => isAdmin ? query(collectionGroup(firestore, 'orders')) : null, [firestore, isAdmin]);
   const usersQuery = useMemoFirebase(() => isAdmin ? collection(firestore, 'users') : null, [firestore, isAdmin]);
@@ -100,7 +104,7 @@ export default function AdminDashboardPage() {
     return { totalRevenue, sales, newUsers, salesByMonth };
   }, [orders, users]);
   
-  const isLoading = isUserLoading || isAdmin === null || isLoadingOrders || isLoadingUsers;
+  const isLoading = isUserLoading || isAdmin !== true || isLoadingOrders || isLoadingUsers;
 
   if (isLoading) {
       return (
@@ -144,14 +148,6 @@ export default function AdminDashboardPage() {
       </div>
     </div>
       )
-  }
-
-  if (isAdmin === false) {
-    return (
-       <div className="flex-1 space-y-4 pt-6 flex items-center justify-center">
-          <p className="text-muted-foreground">Redirecting...</p>
-       </div>
-    )
   }
 
   return (

@@ -142,18 +142,21 @@ export default function UserManagementPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isUserLoading) return; 
+    if (isUserLoading) {
+      return; // Wait until user loading is complete
+    }
 
     if (!currentUser) {
       router.push('/login');
-      return;
+      return; // Redirect if not logged in
     }
 
     currentUser.getIdTokenResult().then((idTokenResult) => {
       const isAdminClaim = !!idTokenResult.claims.admin;
-      setIsAdmin(isAdminClaim);
-      if (!isAdminClaim) {
-        router.push('/dashboard'); 
+      if (isAdminClaim) {
+        setIsAdmin(true);
+      } else {
+        router.push('/dashboard'); // Redirect if not an admin
       }
     });
   }, [currentUser, isUserLoading, router]);
@@ -164,7 +167,7 @@ export default function UserManagementPage() {
   );
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
 
-  const isLoading = isUserLoading || isAdmin === null || isLoadingUsers;
+  const isLoading = isUserLoading || isAdmin !== true || isLoadingUsers;
 
   if (isLoading) {
     return (
@@ -214,14 +217,6 @@ export default function UserManagementPage() {
         </CardContent>
       </Card>
     </div>
-    )
-  }
-  
-  if (isAdmin === false) {
-    return (
-       <div className="flex-1 space-y-4 pt-6 flex items-center justify-center">
-          <p className="text-muted-foreground">Redirecting...</p>
-       </div>
     )
   }
 
