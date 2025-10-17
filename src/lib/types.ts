@@ -10,17 +10,15 @@ export type Product = {
 export type WithId<T> = T & { id: string };
 
 export type User = {
-  id: string;
-  name: string;
+  uid: string;
   email: string;
   role: 'admin' | 'user';
-  lastSeen: string;
-  firstName?: string;
-  lastName?: string;
+  firstName: string;
+  lastName: string;
   shippingAddress?: string;
   phoneNumber?: string;
-  uid?: string;
 };
+
 
 export type Order = {
   id: string;
