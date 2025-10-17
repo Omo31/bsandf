@@ -22,7 +22,7 @@ import {
 } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
 import { FirebaseError } from 'firebase/app';
-import { setDoc, doc, getDoc } from 'firebase/firestore';
+import { setDoc, doc, getDoc, updateProfile } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Checkbox } from '@/components/ui/checkbox';
 import { sendPasswordResetEmail, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -102,47 +102,38 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
                 setIsLoading(false);
                 return;
             }
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            await signInWithEmailAndPassword(auth, email, password);
 
-            // Check if user document exists, if not create it.
-            const userDocRef = doc(firestore, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (!userDoc.exists()) {
-                await setDoc(userDocRef, {
-                    uid: user.uid,
-                    email: user.email,
-                    firstName: user.displayName?.split(' ')[0] || 'New',
-                    lastName: user.displayName?.split(' ')[1] || 'User',
-                    role: 'user',
-                }, { merge: true });
-            }
-
-        } else {
-            if (!email || !password || !firstName || !lastName || !shippingAddress || !phoneNumber) {
-                 toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill out all required fields.' });
+        } else { // Signup logic
+            if (!email || !password || !firstName || !lastName || !agreedToTerms) {
+                 toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill out all required fields and agree to the terms.' });
                  setIsLoading(false);
                  return;
             }
+            // 1. Create the user in Auth
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-            
-            // Save additional user info to Firestore
-            await setDoc(doc(firestore, "users", user.uid), {
-                uid: user.uid,
-                email: user.email,
-                firstName: firstName,
-                lastName: lastName,
-                role: 'user',
-                shippingAddress: shippingAddress,
-                phoneNumber: `+234${phoneNumber}`
+
+            // 2. Set their display name in Auth
+            await updateProfile(user, {
+                displayName: `${firstName} ${lastName}`
             });
+
+            // 3. Manually save additional info to Firestore. 
+            // The Cloud Function will handle the core user document creation.
+            const userDocRef = doc(firestore, "users", user.uid);
+            await setDoc(userDocRef, {
+                shippingAddress: shippingAddress,
+                phoneNumber: phoneNumber ? `+234${phoneNumber}` : ''
+            }, { merge: true });
         }
+        
         toast({
             title: isLogin ? 'Login Successful' : 'Account Created',
             description: isLogin ? 'Welcome back!' : 'Redirecting to your dashboard...',
         });
         router.push('/dashboard');
+        
     } catch (error) {
         if (error instanceof FirebaseError) {
             handleAuthError(error);
@@ -187,16 +178,8 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
     try {
       const userCredential = await initiateGoogleSignIn(auth);
       const user = userCredential.user;
-       // Save or merge additional user info to Firestore on Google sign-in
-      const userRef = doc(firestore, "users", user.uid);
-      await setDoc(userRef, {
-        uid: user.uid,
-        email: user.email,
-        firstName: user.displayName?.split(' ')[0] || '',
-        lastName: user.displayName?.split(' ')[1] || '',
-        role: 'user',
-      }, { merge: true });
-
+       // The onUserCreate function will handle creating the Firestore doc.
+       // No need to write to Firestore from the client on Google sign-in.
       toast({
         title: 'Google Sign-In Successful',
         description: 'Welcome! Redirecting to your dashboard...',
@@ -259,16 +242,16 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
            {!isLogin && (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="shippingAddress">Shipping Address</Label>
-                <Input id="shippingAddress" placeholder="123 Foodie Lane" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} required />
+                <Label htmlFor="shippingAddress">Shipping Address (Optional)</Label>
+                <Input id="shippingAddress" placeholder="123 Foodie Lane" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                         <span className="text-muted-foreground sm:text-sm">+234</span>
                     </div>
-                    <Input id="phoneNumber" type="tel" placeholder="801 234 5678" className="pl-14" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))} required />
+                    <Input id="phoneNumber" type="tel" placeholder="801 234 5678" className="pl-14" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))} />
                 </div>
               </div>
             </>
@@ -295,7 +278,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
 
           {!isLogin && (
             <div className="flex items-center space-x-2">
-              <Checkbox id="terms" onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} />
+              <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} />
               <Label htmlFor="terms" className="text-sm text-muted-foreground">
                 I agree to the{' '}
                 <Link href="/terms" className="underline hover:text-primary">
