@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -49,20 +50,20 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (isUserLoading) {
-      return; // Wait until user loading is complete
+      return; // Wait for user to be loaded
     }
-
     if (!currentUser) {
-      router.push('/login');
-      return; // Redirect if not logged in
+      router.push('/login'); // Redirect if not logged in
+      return;
     }
-
     currentUser.getIdTokenResult().then((idTokenResult) => {
       const isAdminClaim = !!idTokenResult.claims.admin;
       if (isAdminClaim) {
         setIsAdmin(true);
       } else {
-        router.push('/dashboard'); // Redirect if not an admin
+        // If not an admin, redirect to the user dashboard
+        router.push('/dashboard');
+        setIsAdmin(false);
       }
     });
   }, [currentUser, isUserLoading, router]);
@@ -104,9 +105,8 @@ export default function AdminDashboardPage() {
     return { totalRevenue, sales, newUsers, salesByMonth };
   }, [orders, users]);
   
-  const isLoading = isUserLoading || isAdmin !== true || isLoadingOrders || isLoadingUsers;
-
-  if (isLoading) {
+  // Render loading state until admin status is confirmed
+  if (isUserLoading || isAdmin === null) {
       return (
     <div className="flex-1 space-y-4 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -148,6 +148,15 @@ export default function AdminDashboardPage() {
       </div>
     </div>
       )
+  }
+
+  // If isAdmin is false, the redirect is already in progress, render nothing or a message.
+  if (!isAdmin) {
+      return (
+          <div className="flex-1 space-y-4 pt-6 text-center">
+              <p>Redirecting...</p>
+          </div>
+      );
   }
 
   return (
@@ -281,3 +290,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    

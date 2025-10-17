@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -43,7 +44,7 @@ import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import type { User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 function UserActions({ user: targetUser }: { user: WithId<User> }) {
@@ -147,8 +148,8 @@ export default function UserManagementPage() {
     }
 
     if (!currentUser) {
-      router.push('/login');
-      return; // Redirect if not logged in
+      router.push('/login'); // Redirect if not logged in
+      return;
     }
 
     currentUser.getIdTokenResult().then((idTokenResult) => {
@@ -156,7 +157,9 @@ export default function UserManagementPage() {
       if (isAdminClaim) {
         setIsAdmin(true);
       } else {
-        router.push('/dashboard'); // Redirect if not an admin
+        // If not an admin, redirect to the user dashboard
+        router.push('/dashboard');
+        setIsAdmin(false);
       }
     });
   }, [currentUser, isUserLoading, router]);
@@ -167,7 +170,7 @@ export default function UserManagementPage() {
   );
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
 
-  const isLoading = isUserLoading || isAdmin !== true || isLoadingUsers;
+  const isLoading = isUserLoading || isAdmin === null || (isAdmin && isLoadingUsers);
 
   if (isLoading) {
     return (
@@ -218,6 +221,11 @@ export default function UserManagementPage() {
       </Card>
     </div>
     )
+  }
+
+  // If isAdmin is false, the redirect is already in progress.
+  if (!isAdmin) {
+    return <div className="flex-1 space-y-4 pt-6 text-center"><p>Redirecting...</p></div>;
   }
 
   return (
@@ -282,3 +290,5 @@ export default function UserManagementPage() {
     </div>
   );
 }
+
+    
