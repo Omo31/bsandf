@@ -44,7 +44,7 @@ const chartConfig = {
 export default function AdminDashboardPage() {
   const firestore = useFirestore();
   const { user: currentUser, isUserLoading } = useUser();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -100,12 +100,56 @@ export default function AdminDashboardPage() {
     return { totalRevenue, sales, newUsers, salesByMonth };
   }, [orders, users]);
   
-  const isLoading = isUserLoading || !isAdmin || isLoadingOrders || isLoadingUsers;
+  const isLoading = isUserLoading || isAdmin === null || isLoadingOrders || isLoadingUsers;
 
-  if (!isAdmin && !isUserLoading) {
+  if (isLoading) {
+      return (
+    <div className="flex-1 space-y-4 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <Skeleton className="h-9 w-1/3" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-4" />
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="h-8 w-3/4" />
+                    <Skeleton className="h-3 w-1/2 mt-1" />
+                </CardContent>
+            </Card>
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+             <Skeleton className="h-6 w-1/4" />
+             <Skeleton className="h-4 w-1/2" />
+          </CardHeader>
+          <CardContent className="pl-2">
+            <Skeleton className="h-[350px] w-full" />
+          </CardContent>
+        </Card>
+        <Card className="col-span-3">
+          <CardHeader>
+            <Skeleton className="h-6 w-1/3" />
+            <Skeleton className="h-4 w-3/4" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[350px] w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+      )
+  }
+
+  if (isAdmin === false) {
     return (
        <div className="flex-1 space-y-4 pt-6 flex items-center justify-center">
-          <p className="text-muted-foreground">Verifying permissions...</p>
+          <p className="text-muted-foreground">Redirecting...</p>
        </div>
     )
   }
@@ -122,7 +166,7 @@ export default function AdminDashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">₦{stats.totalRevenue.toFixed(2)}</div>}
+            <div className="text-2xl font-bold">₦{stats.totalRevenue.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">From completed sales</p>
           </CardContent>
         </Card>
@@ -132,7 +176,7 @@ export default function AdminDashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">+{stats.newUsers}</div>}
+            <div className="text-2xl font-bold">+{stats.newUsers}</div>
              <p className="text-xs text-muted-foreground">Total registered users</p>
           </CardContent>
         </Card>
@@ -142,7 +186,7 @@ export default function AdminDashboardPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">+{stats.sales}</div>}
+            <div className="text-2xl font-bold">+{stats.sales}</div>
             <p className="text-xs text-muted-foreground">Total completed orders</p>
           </CardContent>
         </Card>
@@ -164,7 +208,6 @@ export default function AdminDashboardPage() {
              <CardDescription>Monthly revenue trends from completed orders.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            {isLoading ? <Skeleton className="h-[350px] w-full" /> : (
               <ChartContainer config={chartConfig} className="h-[350px] w-full">
                 <LineChart
                   accessibilityLayer
@@ -206,7 +249,6 @@ export default function AdminDashboardPage() {
                   />
                 </LineChart>
               </ChartContainer>
-            )}
           </CardContent>
         </Card>
         <Card className="col-span-3">
@@ -215,7 +257,6 @@ export default function AdminDashboardPage() {
             <CardDescription>User access by device (mock data).</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-[350px] w-full" /> : (
               <ChartContainer config={chartConfig} className="h-[350px] w-full">
                 <BarChart accessibilityLayer data={[
                     { month: 'January', desktop: 186, mobile: 80 },
@@ -238,7 +279,6 @@ export default function AdminDashboardPage() {
                   <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
                 </BarChart>
               </ChartContainer>
-            )}
           </CardContent>
         </Card>
       </div>

@@ -138,15 +138,14 @@ function UserActions({ user: targetUser }: { user: WithId<User> }) {
 export default function UserManagementPage() {
   const firestore = useFirestore();
   const { user: currentUser, isUserLoading } = useUser();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const router = useRouter();
 
-  // This effect handles security. It checks for admin claims and redirects if necessary.
   useEffect(() => {
-    if (isUserLoading) return; // Wait until user status is resolved
+    if (isUserLoading) return; 
 
     if (!currentUser) {
-      router.push('/login'); // Not logged in, redirect to login
+      router.push('/login');
       return;
     }
 
@@ -154,26 +153,74 @@ export default function UserManagementPage() {
       const isAdminClaim = !!idTokenResult.claims.admin;
       setIsAdmin(isAdminClaim);
       if (!isAdminClaim) {
-        router.push('/dashboard'); // Not an admin, redirect to user dashboard
+        router.push('/dashboard'); 
       }
     });
   }, [currentUser, isUserLoading, router]);
 
-  // The query is now memoized and will be null until isAdmin is true.
   const usersQuery = useMemoFirebase(
     () => (firestore && isAdmin ? collection(firestore, 'users') : null),
     [firestore, isAdmin]
   );
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
 
-  // Show loading state until we know if the user is an admin.
-  const isLoading = isUserLoading || !isAdmin || isLoadingUsers;
+  const isLoading = isUserLoading || isAdmin === null || isLoadingUsers;
 
-  if (!isAdmin && !isUserLoading) {
-    // Render a loading state or null while redirecting to avoid flashing content
+  if (isLoading) {
+    return (
+    <div className="flex-1 space-y-4 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <Skeleton className="h-9 w-1/3" />
+        <Skeleton className="h-10 w-36" />
+      </div>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-4 w-2/3" />
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div>
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-3 w-32 mt-1" />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-8 w-8 ml-auto" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+    )
+  }
+  
+  if (isAdmin === false) {
     return (
        <div className="flex-1 space-y-4 pt-6 flex items-center justify-center">
-          <p className="text-muted-foreground">Verifying permissions...</p>
+          <p className="text-muted-foreground">Redirecting...</p>
        </div>
     )
   }
@@ -207,26 +254,6 @@ export default function UserManagementPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading &&
-                [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-10 w-10 rounded-full" />
-                        <div>
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-3 w-32 mt-1" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-6 w-16 rounded-full" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-8 w-8 ml-auto" />
-                    </TableCell>
-                  </TableRow>
-                ))}
               {users &&
                 users.map((user) => (
                   <TableRow key={user.id}>
