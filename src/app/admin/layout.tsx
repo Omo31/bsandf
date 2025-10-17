@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -17,8 +18,9 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/icons';
-import { useUser, useAuth } from '@/firebase';
-import { useEffect, useState } from 'react';
+import { useUser } from '@/firebase';
+import { useEffect } from 'react';
+import { useAdmin } from '@/hooks/use-admin';
 
 
 const navLinks = [
@@ -33,34 +35,29 @@ const navLinks = [
 
 function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
-  const auth = useAuth();
+  const { isAdmin, isCheckingAdmin } = useAdmin();
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   useEffect(() => {
-    if (isUserLoading) {
-      return; // Wait for user state to be determined
+    // If user state or admin check is still loading, don't do anything.
+    if (isUserLoading || isCheckingAdmin) {
+      return;
     }
 
+    // If there's no user, redirect to login.
     if (!user) {
       router.push('/login');
       return;
     }
 
-    // Force a refresh of the ID token to get the latest custom claims.
-    user.getIdTokenResult(true).then((idTokenResult) => {
-      if (idTokenResult.claims.admin) {
-        setIsAdmin(true);
-      } else {
-        // If the user is not an admin, redirect them away.
-        router.push('/dashboard');
-      }
-      setIsCheckingAdmin(false);
-    });
-  }, [user, isUserLoading, router, auth]);
+    // If the checks are done and the user is not an admin, redirect.
+    if (!isAdmin) {
+      router.push('/dashboard');
+    }
+  }, [user, isUserLoading, isAdmin, isCheckingAdmin, router]);
 
-  if (isCheckingAdmin) {
+
+  if (isCheckingAdmin || isUserLoading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
         <Loader2 className="h-8 w-8 animate-spin" />

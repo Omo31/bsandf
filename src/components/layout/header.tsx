@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   Bell,
+  ShieldCheck
 } from 'lucide-react';
 import { Logo } from '@/components/icons';
 import {
@@ -27,6 +28,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
 import { useUser, useAuth } from '@/firebase';
+import { useAdmin } from '@/hooks/use-admin';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -41,6 +43,7 @@ export default function Header() {
   
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const { isAdmin, isCheckingAdmin } = useAdmin();
   
   useEffect(() => {
     setIsClient(true);
@@ -106,9 +109,11 @@ export default function Header() {
                       <Link href="/dashboard" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
                         Dashboard
                       </Link>
-                      <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
-                        Admin
-                      </Link>
+                      {isAdmin && (
+                        <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
+                          Admin
+                        </Link>
+                      )}
                        <DropdownMenuSeparator />
                        <Button variant="ghost" className="justify-start" onClick={handleLogout}>
                           <LogOut className="mr-2 h-4 w-4" />
@@ -189,13 +194,17 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                   
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin">
-                      <LayoutGrid className="mr-2 h-4 w-4" />
-                      <span>Admin</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin">
+                          <ShieldCheck className="mr-2 h-4 w-4" />
+                          <span>Admin Panel</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
