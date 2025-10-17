@@ -20,12 +20,11 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Line, LineChart } from 'recharts';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, collectionGroup } from 'firebase/firestore';
 import type { Order, User } from '@/lib/types';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRouter } from 'next/navigation';
 
 const chartConfig = {
   desktop: {
@@ -44,30 +43,9 @@ const chartConfig = {
 
 export default function AdminDashboardPage() {
   const firestore = useFirestore();
-  const { user: currentUser, isUserLoading } = useUser();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const router = useRouter();
 
-  useEffect(() => {
-    if (isUserLoading) {
-      return; 
-    }
-    if (!currentUser) {
-      router.push('/login');
-      return;
-    }
-    currentUser.getIdTokenResult().then((idTokenResult) => {
-      const isAdminClaim = !!idTokenResult.claims.admin;
-      setIsAdmin(isAdminClaim);
-      if (!isAdminClaim) {
-        router.push('/dashboard');
-      }
-    });
-  }, [currentUser, isUserLoading, router]);
-
-
-  const ordersQuery = useMemoFirebase(() => isAdmin ? query(collectionGroup(firestore, 'orders')) : null, [firestore, isAdmin]);
-  const usersQuery = useMemoFirebase(() => isAdmin ? collection(firestore, 'users') : null, [firestore, isAdmin]);
+  const ordersQuery = useMemoFirebase(() => query(collectionGroup(firestore, 'orders')), [firestore]);
+  const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
@@ -102,7 +80,9 @@ export default function AdminDashboardPage() {
     return { totalRevenue, sales, newUsers, salesByMonth };
   }, [orders, users]);
   
-  if (isUserLoading || isAdmin === null) {
+  const isLoading = isLoadingOrders || isLoadingUsers;
+
+  if (isLoading) {
       return (
     <div className="flex-1 space-y-4 pt-6">
       <div className="flex items-center justify-between space-y-2">

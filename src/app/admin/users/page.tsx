@@ -45,7 +45,6 @@ import type { User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 function UserActions({ user: targetUser }: { user: WithId<User> }) {
   const firestore = useFirestore();
@@ -134,83 +133,13 @@ function UserActions({ user: targetUser }: { user: WithId<User> }) {
 
 export default function UserManagementPage() {
   const firestore = useFirestore();
-  const { user: currentUser, isUserLoading } = useUser();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isUserLoading) {
-      return;
-    }
-    if (!currentUser) {
-      router.push('/login');
-      return;
-    }
-    currentUser.getIdTokenResult().then((idTokenResult) => {
-      const isAdminClaim = !!idTokenResult.claims.admin;
-      setIsAdmin(isAdminClaim);
-      if (!isAdminClaim) {
-        router.push('/dashboard');
-      }
-    });
-  }, [currentUser, isUserLoading, router]);
-
+  const { user: currentUser } = useUser();
+  
   const usersQuery = useMemoFirebase(
-    () => (firestore && isAdmin ? collection(firestore, 'users') : null),
-    [firestore, isAdmin]
+    () => (firestore ? collection(firestore, 'users') : null),
+    [firestore]
   );
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
-
-  if (isUserLoading || isAdmin === null) {
-    return (
-    <div className="flex-1 space-y-4 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <Skeleton className="h-9 w-1/3" />
-        <Skeleton className="h-10 w-36" />
-      </div>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-24" />
-          <Skeleton className="h-4 w-2/3" />
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-10 w-10 rounded-full" />
-                        <div>
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-3 w-32 mt-1" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-6 w-16 rounded-full" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-8 w-8 ml-auto" />
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-    )
-  }
 
   return (
     <div className="flex-1 space-y-4 pt-6">
