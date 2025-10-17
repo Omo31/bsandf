@@ -45,7 +45,6 @@ function ChatMessageDisplay({ author, message, avatar, currentAdminId }: { autho
 export default function AdminChatPage() {
     const { user: adminUser, isUserLoading: isAdminLoading } = useUser();
     const firestore = useFirestore();
-    const adminId = 'beautifulsoup-admin';
 
     const usersQuery = useMemoFirebase(() => {
         if (!firestore || !adminUser) return null;
@@ -87,7 +86,7 @@ export default function AdminChatPage() {
     const activeMessages = useMemo(() => {
         if (!sentMessages || !receivedMessages) return [];
         // Combine and sort messages from both queries
-        return [...sentMessages, ...receivedMessages].sort((a, b) => a.timestamp?.toMillis() - b.timestamp?.toMillis());
+        return [...sentMessages, ...receivedMessages].sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
     }, [sentMessages, receivedMessages]);
     
     const activeConversationUser = useMemo(() => users?.find(u => u.uid === selectedUserId), [users, selectedUserId]);
@@ -234,7 +233,7 @@ export default function AdminChatPage() {
                          </>
                        ) : (
                            <div className="flex flex-1 items-center justify-center text-muted-foreground">
-                               <p>Select a conversation to start chatting.</p>
+                               {areUsersLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <p>Select a conversation to start chatting.</p>}
                            </div>
                        )}
                     </div>
