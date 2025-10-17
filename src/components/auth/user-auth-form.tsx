@@ -26,6 +26,7 @@ import { FirebaseError } from 'firebase/app';
 import { setDoc, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Checkbox } from '@/components/ui/checkbox';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 interface UserAuthFormProps {
   formType: 'login' | 'signup';
@@ -64,7 +65,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
 
     switch (error.code) {
       case 'auth/user-not-found':
-      case 'auth/wrong-password':
+      case 'auth/invalid-credential':
         title = 'Invalid Credentials';
         description = 'The email or password you entered is incorrect.';
         break;
@@ -136,6 +137,34 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
         }
     } finally {
         setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({
+        variant: 'destructive',
+        title: 'Email Required',
+        description: 'Please enter your email address to reset your password.',
+      });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `If an account exists for ${email}, you will receive an email with instructions to reset your password.`,
+      });
+    } catch (error) {
+      // We generally don't want to reveal if an email exists or not for security reasons.
+      // So we show a generic message even on error.
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `If an account exists for ${email}, you will receive an email with instructions to reset your password.`,
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -232,7 +261,14 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
           )}
 
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                {isLogin && (
+                    <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={handleForgotPassword}>
+                        Forgot password?
+                    </Button>
+                )}
+            </div>
             <Input
               id="password"
               type="password"

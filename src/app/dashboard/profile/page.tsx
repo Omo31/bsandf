@@ -15,12 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useUser, useAuth } from '@/firebase';
-import {
-  sendPasswordResetEmail,
-  updatePassword,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-} from 'firebase/auth';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -48,13 +43,8 @@ export default function ProfilePage() {
       shippingAddress: '',
       phoneNumber: '',
   });
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
 
   useEffect(() => {
@@ -79,11 +69,6 @@ export default function ProfilePage() {
     const { id, value } = e.target;
     setProfileData(prev => ({...prev, [id]: value}));
   }
-  
-  const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target;
-    setPasswordData(prev => ({...prev, [id]: value}));
-  }
 
   const handleSaveChanges = () => {
       if(user && firestore) {
@@ -103,60 +88,31 @@ export default function ProfilePage() {
           });
       }
   }
-  
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !user.email) return;
 
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
+    const handlePasswordReset = async () => {
+    if (!user?.email) {
       toast({
         variant: 'destructive',
-        title: 'Passwords do not match',
-        description: 'Please ensure your new password and confirmation match.',
+        title: 'Error',
+        description: 'No email address found for your account.',
       });
       return;
     }
-    if (passwordData.newPassword.length < 6) {
-        toast({
-            variant: 'destructive',
-            title: 'Weak Password',
-            description: 'Your new password must be at least 6 characters long.',
-        });
-        return;
-    }
-
-    setIsChangingPassword(true);
-
+    setIsSendingReset(true);
     try {
-        const credential = EmailAuthProvider.credential(user.email, passwordData.currentPassword);
-        await reauthenticateWithCredential(user, credential);
-        await updatePassword(user, passwordData.newPassword);
-        
-        toast({
-            title: 'Password Updated',
-            description: 'Your password has been successfully changed.',
-        });
-        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-
+      await sendPasswordResetEmail(auth, user.email);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `An email has been sent to ${user.email} with instructions to reset your password.`,
+      });
     } catch (error: any) {
-        let title = 'An error occurred';
-        let description = 'Could not change password. Please try again.';
-
-        if (error.code === 'auth/wrong-password') {
-            title = 'Incorrect Password';
-            description = 'The current password you entered is incorrect.';
-        } else if (error.code === 'auth/too-many-requests') {
-            title = 'Too Many Attempts';
-            description = 'You have tried to change your password too many times. Please try again later.';
-        }
-
-        toast({
-            variant: 'destructive',
-            title: title,
-            description: description,
-        });
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Send Email',
+        description: error.message || 'An unexpected error occurred. Please try again.',
+      });
     } finally {
-        setIsChangingPassword(false);
+      setIsSendingReset(false);
     }
   };
 
@@ -224,30 +180,20 @@ export default function ProfilePage() {
           <CardTitle>Security</CardTitle>
           <CardDescription>Manage your security settings.</CardDescription>
         </CardHeader>
-        <form onSubmit={handleChangePassword}>
-          <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
-                <Input id="currentPassword" type="password" value={passwordData.currentPassword} onChange={handlePasswordInputChange} required />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input id="newPassword" type="password" value={passwordData.newPassword} onChange={handlePasswordInputChange} required />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input id="confirmPassword" type="password" value={passwordData.confirmPassword} onChange={handlePasswordInputChange} required />
-                </div>
-              </div>
+          <CardContent>
+             <div className="flex items-center justify-between rounded-lg border p-4">
+                 <div className="space-y-0.5">
+                    <p className="font-medium">Password</p>
+                    <p className="text-sm text-muted-foreground">
+                        To change your password, send a reset link to your email.
+                    </p>
+                 </div>
+                <Button onClick={handlePasswordReset} disabled={isSendingReset}>
+                    {isSendingReset && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Send Reset Link
+                </Button>
+             </div>
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isChangingPassword}>
-                 {isChangingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                 Change Password
-            </Button>
-          </CardFooter>
-        </form>
       </Card>
 
        <Card>
