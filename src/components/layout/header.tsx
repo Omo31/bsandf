@@ -28,7 +28,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
 import { useUser, useAuth } from '@/firebase';
-import { useAdmin } from '@/hooks/use-admin';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -43,7 +42,6 @@ export default function Header() {
   
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
-  const { isAdmin } = useAdmin();
   
   useEffect(() => {
     setIsClient(true);
@@ -79,7 +77,7 @@ export default function Header() {
                 {label}
               </Link>
             ))}
-             {isAdmin && (
+             {isAuthenticated && (
               <Link href="/admin" className="transition-colors hover:text-foreground/80 text-foreground/60 font-semibold text-primary">
                 Admin
               </Link>
@@ -114,11 +112,9 @@ export default function Header() {
                       <Link href="/dashboard" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
                         Dashboard
                       </Link>
-                      {isAdmin && (
-                        <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
+                      <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
                           Admin
-                        </Link>
-                      )}
+                      </Link>
                        <DropdownMenuSeparator />
                        <Button variant="ghost" className="justify-start" onClick={handleLogout}>
                           <LogOut className="mr-2 h-4 w-4" />
@@ -199,17 +195,15 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                   
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin">
-                          <ShieldCheck className="mr-2 h-4 w-4" />
-                          <span>Admin Panel</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
+                  
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      <span>Admin Panel</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  
                   
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
@@ -243,5 +237,3 @@ export default function Header() {
     </header>
   );
 }
-
-    

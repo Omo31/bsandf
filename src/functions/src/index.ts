@@ -25,10 +25,10 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
-    // Check if this is the first user
+    // Check if this is the first user by counting existing documents.
+    // This is more reliable than checking size <= 1 in a transaction.
     const userCountSnapshot = await usersCollectionRef.limit(2).get();
-    // If there is only 1 user document (or none), this new user is the first one.
-    const isFirstUser = userCountSnapshot.size <= 1; 
+    const isFirstUser = userCountSnapshot.size <= 1;
 
     let userRole = 'user';
     
@@ -42,12 +42,14 @@ export const createFirestoreUser = onUserCreate(async (event) => {
     // Create the user document in Firestore
     await userRef.set({
         uid: uid,
-        email: email,
+        email: email || '',
         firstName: firstName,
         lastName: lastName,
         role: userRole,
+        shippingAddress: '',
+        phoneNumber: '',
         createdAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    }, { merge: true }); // Use merge:true to be safe, though set should be fine for new doc
     
     console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
 
@@ -78,7 +80,7 @@ export const updateInventoryOnOrderAccepted = onDocumentUpdated('users/{userId}/
             if (item.productId && item.quantity > 0) {
                 const productRef = db.collection('products').doc(item.productId);
                 // Decrement the inventory count
-                batch.update(productRef, { inventory: FieldValue.increment(-item.quantity) });
+                batch.update(productRef, { stock: FieldValue.increment(-item.quantity) });
             }
         });
 
@@ -228,5 +230,3 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
     console.error('Error sending order status notification:', error);
   }
 });
-
-    
