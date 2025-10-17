@@ -31,22 +31,25 @@ export const createFirestoreUser = onUserCreate(async (event) => {
     const isFirstUser = userCountSnapshot.size <= 1;
 
     let userRole = 'user';
-    if (isFirstUser) {
-        userRole = 'admin';
-        console.log(`First user detected. Granting admin role to ${uid}.`);
-        // Grant admin role by creating a document in roles_admin
-        await db.collection('roles_admin').doc(uid).set({ uid: uid });
-    }
+    // Use a transaction to make this process more robust
+    await db.runTransaction(async (transaction) => {
+        if (isFirstUser) {
+            userRole = 'admin';
+            console.log(`First user detected. Granting admin role to ${uid}.`);
+            const adminRoleRef = db.collection('roles_admin').doc(uid);
+            transaction.set(adminRoleRef, { uid: uid });
+        }
 
-    // Use merge:true to avoid overwriting data if the doc was created manually
-    await userRef.set({
-      uid: uid,
-      email: email,
-      firstName: firstName,
-      lastName: lastName,
-      role: userRole,
-      createdAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+        // Use merge:true to avoid overwriting data if the doc was created manually
+        transaction.set(userRef, {
+            uid: uid,
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            role: userRole,
+            createdAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+    });
     console.log(`Successfully created or merged user document for ${uid} with role: ${userRole}`);
 
   } catch (error) {
@@ -81,7 +84,7 @@ export const handleAdminRole = onDocumentWritten('roles_admin/{userId}', async e
             firstName: firstName,
             lastName: lastName,
             role: 'user',
-createdAt: FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
         }, { merge: true });
         console.log(`Created missing user document for ${userId} during admin role handling.`);
     }
