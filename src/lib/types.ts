@@ -13,12 +13,12 @@ export type WithId<T> = T & { id: string };
 export type User = {
   uid: string;
   email: string | null;
-  role: 'admin' | 'user';
   firstName: string | null;
   lastName: string | null;
   shippingAddress?: string;
   phoneNumber?: string;
   createdAt: any; // Can be Firestore's Timestamp
+  role?: 'admin' | 'user';
 };
 
 

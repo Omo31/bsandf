@@ -32,76 +32,68 @@ const navLinks = [
   { href: '/admin/flyer-generator', label: 'AI Flyer Generator', icon: Wand2 },
 ];
 
-function AuthWrapper({ children }: { children: React.ReactNode }) {
-    const { user, isUserLoading } = useUser();
-    const router = useRouter();
-
-    useEffect(() => {
-        if (!isUserLoading && !user) {
-            router.push('/login');
-        }
-    }, [user, isUserLoading, router]);
-
-    if (isUserLoading || !user) {
-        return (
-             <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
-                <p>Loading...</p>
-             </div>
-        )
-    }
-
-    return <>{children}</>;
-}
-
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
-    <AuthWrapper>
-      <SidebarProvider>
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-2">
-              <Logo className="w-7 h-7 text-primary" />
-              <span className="text-lg font-semibold">Admin Panel</span>
-            </div>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-              {navLinks.map((link) => (
-                <SidebarMenuItem key={link.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === link.href}
-                    tooltip={{ children: link.label }}
-                  >
-                    <Link href={link.href}>
-                      <link.icon />
-                      <span>{link.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter>
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/">
-                <Home className="h-4 w-4" />
-                <span>View Store</span>
-              </Link>
-            </Button>
-          </SidebarFooter>
-        </Sidebar>
-        <SidebarInset>
-          <header className="sticky top-0 z-40 w-full border-b bg-background/95 p-2 flex items-center gap-2 md:hidden">
-              <SidebarTrigger />
-              <h1 className="text-lg font-semibold">Admin Panel</h1>
-          </header>
-          <div className="p-4 md:p-6">{children}</div>
-        </SidebarInset>
-      </SidebarProvider>
-    </AuthWrapper>
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <div className="flex items-center gap-2">
+            <Logo className="w-7 h-7 text-primary" />
+            <span className="text-lg font-semibold">Admin Panel</span>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu>
+            {navLinks.map((link) => (
+              <SidebarMenuItem key={link.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === link.href}
+                  tooltip={{ children: link.label }}
+                >
+                  <Link href={link.href}>
+                    <link.icon />
+                    <span>{link.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter>
+          <Button asChild variant="outline" className="w-full justify-start gap-2">
+            <Link href="/">
+              <Home className="h-4 w-4" />
+              <span>View Store</span>
+            </Link>
+          </Button>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <header className="sticky top-0 z-40 w-full border-b bg-background/95 p-2 flex items-center gap-2 md:hidden">
+            <SidebarTrigger />
+            <h1 className="text-lg font-semibold">Admin Panel</h1>
+        </header>
+        <div className="p-4 md:p-6">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
