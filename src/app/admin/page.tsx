@@ -48,6 +48,10 @@ const chartConfig = {
     label: 'Mobile',
     color: 'hsl(var(--chart-2))',
   },
+   sales: {
+    label: 'Sales',
+    color: 'hsl(var(--chart-1))',
+  }
 };
 
 export default function AdminDashboardPage() {
@@ -105,15 +109,42 @@ export default function AdminDashboardPage() {
              <CardDescription>Monthly revenue trends.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <ResponsiveContainer width="100%" height={350}>
-                <LineChart data={lineChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tickFormatter={(value) => new Date(value).toLocaleString('default', { month: 'short' })} />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: "hsl(var(--primary))", r: 4 }} activeDot={{ r: 6 }}/>
-                </LineChart>
-            </ResponsiveContainer>
+            <ChartContainer config={chartConfig} className="h-[350px] w-full">
+              <LineChart
+                accessibilityLayer
+                data={lineChartData}
+                margin={{
+                  left: 12,
+                  right: 12,
+                }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tickFormatter={(value) => new Date(value).toLocaleString('default', { month: 'short' })}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent />}
+                />
+                <Line
+                  dataKey="sales"
+                  type="monotone"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={{
+                    fill: "hsl(var(--primary))",
+                    r: 4
+                  }}
+                  activeDot={{
+                    r: 6,
+                  }}
+                />
+              </LineChart>
+            </ChartContainer>
           </CardContent>
         </Card>
         <Card className="col-span-3">
