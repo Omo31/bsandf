@@ -8,35 +8,40 @@ import { FieldValue } from 'firebase-admin/firestore';
 admin.initializeApp();
 const db = admin.firestore();
 
+// The email address of the designated super admin.
+const SUPER_ADMIN_EMAIL = 'olaomo31@yahoo.co.uk';
+
 /**
  * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
- * It also grants admin role and sets custom claims for the first user.
+ * It also grants admin role and sets custom claims for the designated super admin.
  */
 export const createFirestoreUser = onUserCreate(async (event) => {
   const user = event.data;
   const { uid, email, displayName } = user;
 
+  if (!email) {
+    console.log(`User ${uid} has no email, cannot process for admin role.`);
+    return;
+  }
+
   const userRef = db.collection('users').doc(uid);
-  const usersCollectionRef = db.collection('users');
 
   const nameParts = displayName?.split(' ') || [];
   const firstName = nameParts[0] || 'New';
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
-  try {
-    const userCountSnapshot = await usersCollectionRef.limit(2).get();
-    const isFirstUser = userCountSnapshot.size <= 1;
+  let userRole = 'user';
 
-    let userRole = 'user';
-    
-    if (isFirstUser) {
+  try {
+    // Check if the new user's email matches the designated super admin email.
+    if (email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
       userRole = 'admin';
-      console.log(`First user detected. Granting admin role and custom claim to ${uid}.`);
-      // Set the custom claim immediately. This is the crucial fix.
+      console.log(`Super admin user detected. Granting admin role and custom claim to ${uid}.`);
+      // Set the admin custom claim immediately. This is the most reliable method.
       await admin.auth().setCustomUserClaims(uid, { admin: true });
     }
     
-    // Create the user document in Firestore
+    // Create the user document in Firestore with the determined role.
     await userRef.set({
       uid: uid,
       email: email,
@@ -45,13 +50,6 @@ export const createFirestoreUser = onUserCreate(async (event) => {
       role: userRole,
       createdAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-
-    // If they are the first user, also create the doc in roles_admin for consistency if needed elsewhere,
-    // though custom claims are primary.
-    if (isFirstUser) {
-        const adminRoleRef = db.collection('roles_admin').doc(uid);
-        await adminRoleRef.set({ uid: uid });
-    }
 
     console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
 
