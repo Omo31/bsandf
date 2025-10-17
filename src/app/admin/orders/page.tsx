@@ -42,7 +42,7 @@ import {
   getDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { Order, User, WithId } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,7 +76,7 @@ function OrderDetailsDialog({ order }: { order: WithId<Order> }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (isOpen && order.userId) {
+    if (isOpen && order.userId && firestore) {
       const userRef = doc(firestore, 'users', order.userId);
       getDoc(userRef).then((docSnap) => {
         if (docSnap.exists()) {
@@ -92,6 +92,7 @@ function OrderDetailsDialog({ order }: { order: WithId<Order> }) {
 
   const handleSubmitQuote = async () => {
     setIsUpdating(true);
+    if (!firestore) return;
     try {
       const orderRef = doc(firestore, `users/${order.userId}/orders`, order.id);
       await updateDoc(orderRef, {
@@ -103,7 +104,7 @@ function OrderDetailsDialog({ order }: { order: WithId<Order> }) {
       });
       toast({
         title: 'Quote Sent!',
-        description: `The quote has been sent to ${customer?.name || 'the user'} for approval.`,
+        description: `The quote has been sent to ${customer?.firstName || 'the user'} for approval.`,
       });
       setIsOpen(false);
     } catch (error) {
@@ -204,7 +205,7 @@ function OrderTable({ orders, isLoading }: { orders: WithId<Order>[] | null; isL
   const [customers, setCustomers] = useState<Record<string, User>>({});
 
   useEffect(() => {
-    if (orders) {
+    if (orders && firestore) {
       const userIds = [...new Set(orders.map(o => o.userId))];
       userIds.forEach(userId => {
         if (!customers[userId]) {
@@ -306,6 +307,7 @@ function OrderTable({ orders, isLoading }: { orders: WithId<Order>[] | null; isL
 export default function OrderManagementPage() {
   const firestore = useFirestore();
   const ordersQuery = useMemo(() => {
+    if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'));
   }, [firestore]);
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -44,8 +43,15 @@ const chartConfig = {
 export default function AdminDashboardPage() {
   const firestore = useFirestore();
 
-  const ordersQuery = useMemoFirebase(() => query(collectionGroup(firestore, 'orders')), [firestore]);
-  const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collectionGroup(firestore, 'orders'));
+  }, [firestore]);
+  
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'users');
+  }, [firestore]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
