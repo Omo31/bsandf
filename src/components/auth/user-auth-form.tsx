@@ -114,10 +114,9 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
             }
             // 1. Create the user in Auth
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-
+            
             // 2. Set their display name in Auth. This is a separate step.
-            await updateProfile(user, {
+            await updateProfile(userCredential.user, {
                 displayName: `${firstName} ${lastName}`
             });
             
