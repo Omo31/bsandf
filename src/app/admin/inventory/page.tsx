@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, PlusCircle, Trash2 } from 'lucide-react';
+import { MoreHorizontal, PlusCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,9 +52,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Product, WithId } from '@/lib/types';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { collection } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  addDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  updateDocumentNonBlocking,
+} from '@/firebase/non-blocking-updates';
+import { useToast } from '@/hooks/use-toast';
 
 function ProductDialog({
   product,
@@ -62,7 +68,7 @@ function ProductDialog({
   children,
 }: {
   product?: WithId<Product>;
-  onSave: (productData: Product) => void;
+  onSave: (productData: Omit<Product, 'id'>) => void;
   children: React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -70,7 +76,8 @@ function ProductDialog({
   const [description, setDescription] = useState(product?.description || '');
   const [price, setPrice] = useState(product?.price || 0);
   const [stock, setStock] = useState(product?.stock || 0);
-  const [imagePlaceholderId, setImagePlaceholderId] = useState(product?.imagePlaceholderId || 'product-1');
+  // For simplicity, we'll keep a static image placeholder. A real app might have image uploads.
+  const imagePlaceholderId = product?.imagePlaceholderId || `product-${Math.floor(Math.random() * 8) + 1}`;
 
   const handleSave = () => {
     onSave({
@@ -79,8 +86,15 @@ function ProductDialog({
       price,
       stock,
       imagePlaceholderId,
-    } as Product);
+    });
     setIsOpen(false);
+    // Reset form for next time if it was for adding a new product
+    if (!product) {
+      setName('');
+      setDescription('');
+      setPrice(0);
+      setStock(0);
+    }
   };
 
   return (
@@ -172,25 +186,41 @@ function DeleteProductDialog({ onDelete }: { onDelete: () => void }) {
 
 export default function InventoryPage() {
   const firestore = useFirestore();
-  const productsQuery = useMemoFirebase(
+  const { toast } = useToast();
+  const productsCollection = useMemoFirebase(
     () => (firestore ? collection(firestore, 'products') : null),
     [firestore]
   );
-  const { data: products, isLoading } = useCollection<Product>(productsQuery);
+  const { data: products, isLoading } = useCollection<Product>(productsCollection);
 
-  const handleSaveProduct = (productData: Product) => {
-    console.log('Saving product:', productData);
-    // Logic to save to Firestore will be added here
+  const handleSaveProduct = (productData: Omit<Product, 'id'>) => {
+    if (!productsCollection) return;
+    addDocumentNonBlocking(productsCollection, productData);
+    toast({
+      title: 'Product Added',
+      description: `${productData.name} has been added to the inventory.`,
+    });
   };
 
-  const handleUpdateProduct = (productId: string, productData: Product) => {
-    console.log('Updating product:', productId, productData);
-    // Logic to update in Firestore will be added here
+  const handleUpdateProduct = (productId: string, productData: Omit<Product, 'id'>) => {
+    if (!firestore) return;
+    const productRef = doc(firestore, 'products', productId);
+    updateDocumentNonBlocking(productRef, productData);
+    toast({
+      title: 'Product Updated',
+      description: `${productData.name} has been successfully updated.`,
+    });
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    console.log('Deleting product:', productId);
-    // Logic to delete from Firestore will be added here
+  const handleDeleteProduct = (productId: string, productName: string) => {
+    if (!firestore) return;
+    const productRef = doc(firestore, 'products', productId);
+    deleteDocumentNonBlocking(productRef);
+    toast({
+      variant: 'destructive',
+      title: 'Product Deleted',
+      description: `${productName} has been removed from the inventory.`,
+    });
   };
 
   return (
@@ -296,7 +326,7 @@ export default function InventoryPage() {
                             >
                               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit</DropdownMenuItem>
                             </ProductDialog>
-                            <DeleteProductDialog onDelete={() => handleDeleteProduct(product.id)} />
+                            <DeleteProductDialog onDelete={() => handleDeleteProduct(product.id, product.name)} />
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -310,3 +340,5 @@ export default function InventoryPage() {
     </div>
   );
 }
+
+    
