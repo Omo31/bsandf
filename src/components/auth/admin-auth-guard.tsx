@@ -23,8 +23,8 @@ export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // User exists, now check their admin claim.
-    currentUser.getIdTokenResult(true) // Force refresh the token
+    // User exists, now check their admin claim. Forcing a refresh (true) gets the latest claims.
+    currentUser.getIdTokenResult(true) 
       .then((idTokenResult) => {
         const isAdminClaim = !!idTokenResult.claims.admin;
         setIsAdmin(isAdminClaim);
