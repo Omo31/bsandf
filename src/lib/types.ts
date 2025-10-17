@@ -19,6 +19,7 @@ export type User = {
   lastName?: string;
   shippingAddress?: string;
   phoneNumber?: string;
+  uid?: string;
 };
 
 export type Order = {
@@ -42,10 +43,12 @@ export type Order = {
 };
 
 export type CartItem = {
+  id?: string;
   productId: string;
   name: string;
   price: number;
   quantity: number;
+  userId: string;
 };
 
 export type CustomMeasure = {

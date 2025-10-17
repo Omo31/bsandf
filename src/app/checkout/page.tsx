@@ -1,97 +1,181 @@
 'use client';
 
-import { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { usePaystackPayment } from 'react-paystack';
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase';
-import { CreditCard, Loader2 } from 'lucide-react';
-
-// IMPORTANT: You must replace this with your actual Paystack public key
-const PAYSTACK_PUBLIC_KEY = 'pk_test_821db0e7dee446a85dc46266e9be8999b3009a73'; // <--- REPLACE THIS
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { Loader2, Send } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import type { CartItem, User, WithId } from '@/lib/types';
+import { collection, doc, addDoc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function CheckoutForm() {
-  const searchParams = useSearchParams();
+  const router = useRouter();
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
-  
-  const amount = searchParams.get('amount');
-  const amountInKobo = amount ? Math.round(parseFloat(amount) * 100) : 0;
 
-  const config = {
-    reference: (new Date()).getTime().toString(),
-    email: user?.email || 'guest@example.com',
-    amount: amountInKobo,
-    publicKey: PAYSTACK_PUBLIC_KEY,
-  };
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const initializePayment = usePaystackPayment(config);
+  const cartItemsQuery = useMemoFirebase(
+    () => (user ? collection(firestore, `users/${user.uid}/cart_items`) : null),
+    [user, firestore]
+  );
+  const { data: cartItems, isLoading: isCartLoading } = useCollection<CartItem>(cartItemsQuery);
 
-  const onSuccess = (reference: any) => {
-    // IMPORTANT: Here you would typically call a Firebase Cloud Function 
-    // to verify the transaction reference with Paystack's API on the backend
-    // and then create the order in Firestore.
-    console.log('Payment successful. Reference:', reference);
-    toast({
-      title: "Payment Successful!",
-      description: "Your order has been placed.",
-    });
-    // Redirect to a success page or dashboard, e.g., router.push('/dashboard/history');
-  };
+  useEffect(() => {
+    if (user) {
+      const userDocRef = doc(firestore, 'users', user.uid);
+      getDoc(userDocRef).then((docSnap) => {
+        if (docSnap.exists()) {
+          const userData = docSnap.data() as User;
+          setShippingAddress(userData.shippingAddress || '');
+        }
+      });
+    }
+  }, [user, firestore]);
 
-  const onClose = () => {
-    console.log('Payment modal closed.');
-    toast({
-      variant: 'destructive',
-      title: 'Payment Canceled',
-      description: 'The payment process was not completed.',
-    });
-  };
-
-  const handlePayment = () => {
-    if (PAYSTACK_PUBLIC_KEY === 'pk_test_821db0e7dee446a85dc46266e9be8999b3009a73') {
+  const handleSubmitOrder = async () => {
+    if (!user || !cartItems || cartItems.length === 0) {
       toast({
         variant: 'destructive',
-        title: 'Configuration Error',
-        description: 'Please replace the placeholder Paystack public key.',
+        title: 'Error',
+        description: 'You must be logged in and have items in your cart.',
       });
       return;
     }
-    initializePayment({onSuccess, onClose});
-  };
 
-  if (isUserLoading) {
-    return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+    if (!shippingAddress.trim()) {
+       toast({
+        variant: 'destructive',
+        title: 'Missing Address',
+        description: 'Please provide a shipping address.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    const subTotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const serviceCharge = subTotal * 0.06;
+    const totalAmount = subTotal + serviceCharge; // Shipping is added later by admin
+
+    try {
+      // 1. Create the new order document
+      const ordersRef = collection(firestore, `users/${user.uid}/orders`);
+      await addDoc(ordersRef, {
+        userId: user.uid,
+        orderDate: new Date().toISOString(),
+        status: 'Pending Admin Review',
+        items: cartItems.map(({ id, ...rest }) => rest), // Remove firestore ID from cart items
+        shippingAddress: shippingAddress,
+        subTotal: subTotal,
+        serviceCharge: serviceCharge,
+        totalAmount: totalAmount, // Initial total without shipping
+        shippingFee: 0,
+      });
+
+      // 2. Clear the user's cart
+      const batch = writeBatch(firestore);
+      cartItems.forEach((item) => {
+        const itemRef = doc(firestore, `users/${user.uid}/cart_items`, item.id);
+        batch.delete(itemRef);
+      });
+      await batch.commit();
+
+      toast({
+        title: 'Order Submitted!',
+        description: 'Your order has been sent for admin review.',
+      });
+
+      // 3. Redirect to purchase history
+      router.push('/dashboard/history');
+
+    } catch (error) {
+      console.error('Error submitting order:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: 'There was an error submitting your order. Please try again.',
+      });
+      setIsLoading(false);
+    }
+  };
+  
+  if (isUserLoading || isCartLoading) {
+    return (
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="h-4 w-full" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-6 w-1/4" />
+          <Skeleton className="h-24 w-full" />
+        </CardContent>
+        <CardFooter>
+          <Skeleton className="h-10 w-full" />
+        </CardFooter>
+      </Card>
+    )
   }
   
-  if (!amount || amountInKobo <= 0) {
+  if (!user) {
+    return <p className="text-center text-muted-foreground">Please log in to continue.</p>;
+  }
+
+  if (!cartItems || cartItems.length === 0) {
       return (
-          <p className="text-center text-muted-foreground">Invalid checkout amount.</p>
+          <p className="text-center text-muted-foreground">Your cart is empty. Add items to checkout.</p>
       )
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-lg">
       <CardHeader>
-        <CardTitle>Checkout</CardTitle>
-        <CardDescription>Review your order and proceed with payment.</CardDescription>
+        <CardTitle>Confirm Checkout</CardTitle>
+        <CardDescription>
+          Confirm your shipping address and submit your order for admin review. No payment is needed at this time.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Amount to Pay</span>
-            <span className="font-bold text-2xl">₦{amount}</span>
+          <div className="space-y-2">
+            <Label htmlFor="shippingAddress">Shipping Address</Label>
+            <Textarea
+              id="shippingAddress"
+              value={shippingAddress}
+              onChange={(e) => setShippingAddress(e.target.value)}
+              placeholder="Enter your full shipping address"
+              rows={4}
+              disabled={isLoading}
+            />
           </div>
           <div className="text-sm text-muted-foreground">
-            You will be redirected to Paystack to complete your payment securely.
+            An admin will review your order and add a shipping fee. You will be notified to approve the final quote before payment.
           </div>
         </div>
       </CardContent>
       <CardFooter>
-        <Button className="w-full" onClick={handlePayment}>
-          <CreditCard className="mr-2 h-4 w-4" /> Pay with Paystack
+        <Button className="w-full" onClick={handleSubmitOrder} disabled={isLoading}>
+          {isLoading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 h-4 w-4" />
+          )}
+          {isLoading ? 'Submitting...' : 'Submit Order for Review'}
         </Button>
       </CardFooter>
     </Card>
