@@ -15,13 +15,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useUser, useAuth } from '@/firebase';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import {
+  sendPasswordResetEmail,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import type { User as AppUser } from '@/lib/types';
-
+import { Loader2 } from 'lucide-react';
 
 const notificationSettings = [
   { id: 'new-offers', label: 'New Special Offers', description: 'Receive notifications about new promotions and discounts.' },
@@ -37,71 +42,124 @@ export default function ProfilePage() {
   const { toast } = useToast();
 
   const [profileData, setProfileData] = useState({
-      name: '',
+      firstName: '',
+      lastName: '',
       email: '',
-      shippingAddress: '123 User Street, Yourtown',
-      paymentMethod: 'Visa ending in 1234',
-      dietaryNotes: 'No nuts, gluten-free preference'
+      shippingAddress: '',
+      phoneNumber: '',
   });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
 
   useEffect(() => {
     if (user && firestore) {
       const userDocRef = doc(firestore, 'users', user.uid);
       getDoc(userDocRef).then(docSnap => {
         if (docSnap.exists()) {
-          const data = docSnap.data();
+          const data = docSnap.data() as AppUser;
           setProfileData({
-            name: `${data.firstName} ${data.lastName}`,
-            email: data.email,
-            shippingAddress: data.shippingAddress || '123 User Street, Yourtown',
-            paymentMethod: 'Visa ending in 1234', // This would come from a payments collection
-            dietaryNotes: 'No nuts, gluten-free preference' // This could be another field
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+            email: data.email || '',
+            shippingAddress: data.shippingAddress || '',
+            phoneNumber: data.phoneNumber || '',
           });
         }
       });
     }
   }, [user, firestore]);
 
-  const handlePasswordReset = () => {
-    if (user && user.email) {
-      sendPasswordResetEmail(auth, user.email)
-        .then(() => {
-          toast({
-            title: 'Password Reset Email Sent',
-            description: 'Check your inbox for a link to reset your password.',
-          });
-        })
-        .catch((error) => {
-          toast({
-            variant: 'destructive',
-            title: 'Error Sending Email',
-            description: error.message,
-          });
-        });
-    }
-  };
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setProfileData(prev => ({...prev, [id]: value}));
   }
   
+  const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setPasswordData(prev => ({...prev, [id]: value}));
+  }
+
   const handleSaveChanges = () => {
       if(user && firestore) {
+          setIsSavingProfile(true);
           const userDocRef = doc(firestore, 'users', user.uid);
-          const [firstName, ...lastName] = profileData.name.split(' ');
           updateDoc(userDocRef, {
-              firstName,
-              lastName: lastName.join(' '),
+              firstName: profileData.firstName,
+              lastName: profileData.lastName,
               shippingAddress: profileData.shippingAddress,
-              // Other fields would be updated here
+              phoneNumber: profileData.phoneNumber
           }).then(() => {
               toast({ title: 'Profile Updated', description: 'Your changes have been saved.' });
           }).catch(error => {
               toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
+          }).finally(() => {
+              setIsSavingProfile(false);
           });
       }
   }
+  
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !user.email) return;
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        variant: 'destructive',
+        title: 'Passwords do not match',
+        description: 'Please ensure your new password and confirmation match.',
+      });
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+        toast({
+            variant: 'destructive',
+            title: 'Weak Password',
+            description: 'Your new password must be at least 6 characters long.',
+        });
+        return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+        const credential = EmailAuthProvider.credential(user.email, passwordData.currentPassword);
+        await reauthenticateWithCredential(user, credential);
+        await updatePassword(user, passwordData.newPassword);
+        
+        toast({
+            title: 'Password Updated',
+            description: 'Your password has been successfully changed.',
+        });
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+
+    } catch (error: any) {
+        let title = 'An error occurred';
+        let description = 'Could not change password. Please try again.';
+
+        if (error.code === 'auth/wrong-password') {
+            title = 'Incorrect Password';
+            description = 'The current password you entered is incorrect.';
+        } else if (error.code === 'auth/too-many-requests') {
+            title = 'Too Many Attempts';
+            description = 'You have tried to change your password too many times. Please try again later.';
+        }
+
+        toast({
+            variant: 'destructive',
+            title: title,
+            description: description,
+        });
+    } finally {
+        setIsChangingPassword(false);
+    }
+  };
+
 
   return (
     <div className="flex-1 space-y-8 p-8 pt-6">
@@ -124,35 +182,40 @@ export default function ProfilePage() {
           <div className="flex items-center space-x-4">
             <Avatar className="h-20 w-20">
               <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/80/80`} />
-              <AvatarFallback>{profileData.name ? profileData.name.charAt(0) : 'U'}</AvatarFallback>
+              <AvatarFallback>{profileData.firstName ? profileData.firstName.charAt(0) : 'U'}</AvatarFallback>
             </Avatar>
-            <Button variant="outline">Change Photo</Button>
+            <Button variant="outline" disabled>Change Photo</Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" value={profileData.name} onChange={handleInputChange} />
+              <Label htmlFor="firstName">First Name</Label>
+              <Input id="firstName" value={profileData.firstName} onChange={handleProfileInputChange} />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input id="lastName" value={profileData.lastName} onChange={handleProfileInputChange} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={profileData.email} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Phone Number</Label>
+              <Input id="phoneNumber" value={profileData.phoneNumber} onChange={handleProfileInputChange} />
             </div>
           </div>
            <div className="space-y-2">
               <Label htmlFor="shippingAddress">Primary Address</Label>
-              <Input id="shippingAddress" value={profileData.shippingAddress} onChange={handleInputChange} />
-            </div>
-             <div className="space-y-2">
-              <Label htmlFor="paymentMethod">Payment Method</Label>
-              <Input id="paymentMethod" value={profileData.paymentMethod} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dietaryNotes">Dietary Notes</Label>
-              <Textarea id="dietaryNotes" value={profileData.dietaryNotes} onChange={handleInputChange} />
+              <Textarea id="shippingAddress" value={profileData.shippingAddress} onChange={handleProfileInputChange} />
             </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={handleSaveChanges}>Save Profile</Button>
+          <Button onClick={handleSaveChanges} disabled={isSavingProfile}>
+            {isSavingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Profile
+          </Button>
         </CardFooter>
       </Card>
 
@@ -161,17 +224,30 @@ export default function ProfilePage() {
           <CardTitle>Security</CardTitle>
           <CardDescription>Manage your security settings.</CardDescription>
         </CardHeader>
-        <CardContent>
-             <div className="flex items-center justify-between space-x-4 rounded-lg border p-4">
-                 <div>
-                    <Label className="text-base">Password</Label>
-                    <p className="text-sm text-muted-foreground">
-                        Change your password by requesting a reset email.
-                    </p>
-                 </div>
-                 <Button variant="outline" onClick={handlePasswordReset}>Send Reset Link</Button>
-             </div>
-        </CardContent>
+        <form onSubmit={handleChangePassword}>
+          <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input id="currentPassword" type="password" value={passwordData.currentPassword} onChange={handlePasswordInputChange} required />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input id="newPassword" type="password" value={passwordData.newPassword} onChange={handlePasswordInputChange} required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input id="confirmPassword" type="password" value={passwordData.confirmPassword} onChange={handlePasswordInputChange} required />
+                </div>
+              </div>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={isChangingPassword}>
+                 {isChangingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                 Change Password
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
 
        <Card>
@@ -192,7 +268,7 @@ export default function ProfilePage() {
                     {setting.description}
                 </p>
               </div>
-              <Switch id={setting.id} defaultChecked={setting.id !== 'newsletter'}/>
+              <Switch id={setting.id} defaultChecked={setting.id !== 'newsletter'} disabled/>
             </div>
           ))}
         </CardContent>
