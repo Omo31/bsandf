@@ -23,7 +23,6 @@ import {
 } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
 import { FirebaseError } from 'firebase/app';
-import { useFirestore } from '@/firebase';
 import { Checkbox } from '@/components/ui/checkbox';
 import { sendPasswordResetEmail, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
@@ -88,6 +87,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
         description = 'An account already exists with the same email address but different sign-in credentials.';
         break;
       default:
+        title = `Auth Error: ${error.code}`;
         description = error.message;
         break;
     }
@@ -116,12 +116,12 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            // 2. Set their display name in Auth
+            // 2. Set their display name in Auth. This is a separate step.
             await updateProfile(user, {
                 displayName: `${firstName} ${lastName}`
             });
 
-            // The on-create-user function will handle creating the user doc in firestore
+            // The onUserCreate cloud function will automatically create the Firestore user document.
         }
         
         toast({
