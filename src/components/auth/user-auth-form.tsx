@@ -18,12 +18,13 @@ import { Logo } from '@/components/icons';
 import { Github, Chrome, Loader2 } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import {
-  initiateEmailSignIn,
   initiateEmailSignUp,
   initiateGoogleSignIn,
 } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
 import { FirebaseError } from 'firebase/app';
+import { setDoc, doc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 
 interface UserAuthFormProps {
   formType: 'login' | 'signup';
@@ -33,12 +34,26 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
   const isLogin = formType === 'login';
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const capitalizeFirstLetter = (string: string) => {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
+
+  const handleNameChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(capitalizeFirstLetter(e.target.value));
+  };
 
   const handleAuthError = (error: FirebaseError) => {
     let title = 'An error occurred';
@@ -76,16 +91,34 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
   
   const handleTraditionalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-        toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please enter both email and password.' });
-        return;
-    }
     setIsLoading(true);
     try {
         if (isLogin) {
+            if (!email || !password) {
+                toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please enter both email and password.' });
+                setIsLoading(false);
+                return;
+            }
             await auth.signInWithEmailAndPassword(email, password);
         } else {
-            await auth.createUserWithEmailAndPassword(email, password);
+            if (!email || !password || !firstName || !lastName || !shippingAddress || !phoneNumber) {
+                 toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill out all required fields.' });
+                 setIsLoading(false);
+                 return;
+            }
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+            
+            // Save additional user info to Firestore
+            await setDoc(doc(firestore, "users", user.uid), {
+                uid: user.uid,
+                email: user.email,
+                firstName: firstName,
+                lastName: lastName,
+                role: 'user',
+                shippingAddress: shippingAddress,
+                phoneNumber: `+234${phoneNumber}`
+            });
         }
         toast({
             title: isLogin ? 'Login Successful' : 'Account Created',
@@ -106,7 +139,18 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
-      await initiateGoogleSignIn(auth);
+      const userCredential = await initiateGoogleSignIn(auth);
+      const user = userCredential.user;
+       // Save or merge additional user info to Firestore on Google sign-in
+      const userRef = doc(firestore, "users", user.uid);
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        firstName: user.displayName?.split(' ')[0] || '',
+        lastName: user.displayName?.split(' ')[1] || '',
+        role: 'user',
+      }, { merge: true });
+
       toast({
         title: 'Google Sign-In Successful',
         description: 'Welcome! Redirecting to your dashboard...',
@@ -134,28 +178,25 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
           </Link>
           <CardTitle className="text-2xl">{isLogin ? 'Welcome back' : 'Create an account'}</CardTitle>
           <CardDescription>
-            {isLogin ? 'Enter your email to sign in to your account' : 'Enter your email below to create your account'}
+            {isLogin ? 'Enter your email to sign in to your account' : 'Enter your details below to create your account'}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid grid-cols-2 gap-6">
-            <Button variant="outline" type="button" disabled={isLoading || isGoogleLoading}>
-              <Github className="mr-2 h-4 w-4" />
-              Github
-            </Button>
-            <Button variant="outline" type="button" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
-              {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
-              Google
-            </Button>
-          </div>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
+          {!isLogin && (
+            <>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="firstName">First Name</Label>
+                        <Input id="firstName" placeholder="John" value={firstName} onChange={handleNameChange(setFirstName)} required />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input id="lastName" placeholder="Doe" value={lastName} onChange={handleNameChange(setLastName)} required />
+                    </div>
+                </div>
+            </>
+          )}
+
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -168,6 +209,25 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
               required
             />
           </div>
+
+           {!isLogin && (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="shippingAddress">Shipping Address</Label>
+                <Input id="shippingAddress" placeholder="123 Foodie Lane" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <span className="text-muted-foreground sm:text-sm">+234</span>
+                    </div>
+                    <Input id="phoneNumber" type="tel" placeholder="801 234 5678" className="pl-14" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))} required />
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="grid gap-2">
             <Label htmlFor="password">Password</Label>
             <Input
@@ -179,11 +239,32 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
               required
             />
           </div>
+          
+           <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-6">
+            <Button variant="outline" type="button" disabled={true}>
+              <Github className="mr-2 h-4 w-4" />
+              Github
+            </Button>
+            <Button variant="outline" type="button" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+              {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
+              Google
+            </Button>
+          </div>
+
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
             {isLoading && <Loader2 className="animate-spin" />}
-            {!isLoading && (isLogin ? 'Sign In' : 'Sign Up')}
+            {!isLoading && (isLogin ? 'Sign In' : 'Create Account')}
           </Button>
           <p className="text-sm text-muted-foreground">
             {isLogin ? "Don't have an account? " : 'Already have an account? '}
@@ -197,14 +278,9 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
   );
 }
 
-// Override original non-blocking functions with standard awaited versions
-// This is a temporary adjustment to fit the traditional form submission UX
-// where immediate feedback (loading state, error message) is crucial.
 declare module 'firebase/auth' {
     interface Auth {
-        signInWithEmailAndPassword(email: string, password: string): Promise<UserCredential>;
-        createUserWithEmailAndPassword(email: string, password: string): Promise<UserCredential>;
+        signInWithEmailAndPassword(email: string, password: string): Promise<any>;
+        createUserWithEmailAndPassword(email: string, password: string): Promise<any>;
     }
 }
-
-    

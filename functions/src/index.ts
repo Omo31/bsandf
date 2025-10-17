@@ -1,11 +1,42 @@
 'use server';
 import * as admin from 'firebase-admin';
 import { onDocumentWritten, onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onUserCreate } from 'firebase-functions/v2/auth';
 import { UserRecord } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 
 admin.initializeApp();
 const db = admin.firestore();
+
+/**
+ * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
+ */
+export const createFirestoreUser = onUserCreate(async (event) => {
+  const user = event.data;
+  const { uid, email, displayName } = user;
+
+  const userRef = db.collection('users').doc(uid);
+
+  // Split displayName into firstName and lastName
+  const nameParts = displayName?.split(' ') || [];
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  try {
+    await userRef.set({
+      uid: uid,
+      email: email,
+      firstName: firstName,
+      lastName: lastName,
+      role: 'user', // Default role
+      createdAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    console.log(`Successfully created user document for ${uid}`);
+  } catch (error) {
+    console.error(`Error creating user document for ${uid}:`, error);
+  }
+});
+
 
 /**
  * Trigger to grant or revoke admin custom claims based on the existence
@@ -88,7 +119,8 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
 
   try {
     const userDoc = await db.collection('users').doc(userId).get();
-    const userName = userDoc.data()?.name || 'A customer';
+    const userData = userDoc.data();
+    const userName = userData ? `${userData.firstName} ${userData.lastName}` : 'A customer';
 
     const adminRoles = await db.collection('roles_admin').get();
     if (adminRoles.empty) {

@@ -11,10 +11,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { users } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { useUser, useAuth } from '@/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import type { User as AppUser } from '@/lib/types';
+
 
 const notificationSettings = [
   { id: 'new-offers', label: 'New Special Offers', description: 'Receive notifications about new promotions and discounts.' },
@@ -24,7 +31,77 @@ const notificationSettings = [
 ];
 
 export default function ProfilePage() {
-  const user = users[1]; // Mock user
+  const { user } = useUser();
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const [profileData, setProfileData] = useState({
+      name: '',
+      email: '',
+      shippingAddress: '123 User Street, Yourtown',
+      paymentMethod: 'Visa ending in 1234',
+      dietaryNotes: 'No nuts, gluten-free preference'
+  });
+
+  useEffect(() => {
+    if (user && firestore) {
+      const userDocRef = doc(firestore, 'users', user.uid);
+      getDoc(userDocRef).then(docSnap => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setProfileData({
+            name: `${data.firstName} ${data.lastName}`,
+            email: data.email,
+            shippingAddress: data.shippingAddress || '123 User Street, Yourtown',
+            paymentMethod: 'Visa ending in 1234', // This would come from a payments collection
+            dietaryNotes: 'No nuts, gluten-free preference' // This could be another field
+          });
+        }
+      });
+    }
+  }, [user, firestore]);
+
+  const handlePasswordReset = () => {
+    if (user && user.email) {
+      sendPasswordResetEmail(auth, user.email)
+        .then(() => {
+          toast({
+            title: 'Password Reset Email Sent',
+            description: 'Check your inbox for a link to reset your password.',
+          });
+        })
+        .catch((error) => {
+          toast({
+            variant: 'destructive',
+            title: 'Error Sending Email',
+            description: error.message,
+          });
+        });
+    }
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setProfileData(prev => ({...prev, [id]: value}));
+  }
+  
+  const handleSaveChanges = () => {
+      if(user && firestore) {
+          const userDocRef = doc(firestore, 'users', user.uid);
+          const [firstName, ...lastName] = profileData.name.split(' ');
+          updateDoc(userDocRef, {
+              firstName,
+              lastName: lastName.join(' '),
+              shippingAddress: profileData.shippingAddress,
+              // Other fields would be updated here
+          }).then(() => {
+              toast({ title: 'Profile Updated', description: 'Your changes have been saved.' });
+          }).catch(error => {
+              toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
+          });
+      }
+  }
 
   return (
     <div className="flex-1 space-y-8 p-8 pt-6">
@@ -46,38 +123,57 @@ export default function ProfilePage() {
         <CardContent className="space-y-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={`https://picsum.photos/seed/${user.id}/80/80`} />
-              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+              <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/80/80`} />
+              <AvatarFallback>{profileData.name ? profileData.name.charAt(0) : 'U'}</AvatarFallback>
             </Avatar>
             <Button variant="outline">Change Photo</Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" defaultValue={user.name} />
+              <Input id="name" value={profileData.name} onChange={handleInputChange} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue={user.email} />
+              <Input id="email" type="email" value={profileData.email} disabled />
             </div>
           </div>
            <div className="space-y-2">
-              <Label htmlFor="address">Primary Address</Label>
-              <Input id="address" defaultValue="123 User Street, Yourtown" />
+              <Label htmlFor="shippingAddress">Primary Address</Label>
+              <Input id="shippingAddress" value={profileData.shippingAddress} onChange={handleInputChange} />
             </div>
              <div className="space-y-2">
-              <Label htmlFor="payment">Payment Method</Label>
-              <Input id="payment" defaultValue="Visa ending in 1234" />
+              <Label htmlFor="paymentMethod">Payment Method</Label>
+              <Input id="paymentMethod" value={profileData.paymentMethod} onChange={handleInputChange} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dietary">Dietary Notes</Label>
-              <Textarea id="dietary" defaultValue="No nuts, gluten-free preference" />
+              <Label htmlFor="dietaryNotes">Dietary Notes</Label>
+              <Textarea id="dietaryNotes" value={profileData.dietaryNotes} onChange={handleInputChange} />
             </div>
         </CardContent>
         <CardFooter>
-          <Button>Save Profile</Button>
+          <Button onClick={handleSaveChanges}>Save Profile</Button>
         </CardFooter>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Security</CardTitle>
+          <CardDescription>Manage your security settings.</CardDescription>
+        </CardHeader>
+        <CardContent>
+             <div className="flex items-center justify-between space-x-4 rounded-lg border p-4">
+                 <div>
+                    <Label className="text-base">Password</Label>
+                    <p className="text-sm text-muted-foreground">
+                        Change your password by requesting a reset email.
+                    </p>
+                 </div>
+                 <Button variant="outline" onClick={handlePasswordReset}>Send Reset Link</Button>
+             </div>
+        </CardContent>
+      </Card>
+
        <Card>
         <CardHeader>
           <CardTitle>Email Notifications</CardTitle>
