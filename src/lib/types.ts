@@ -30,3 +30,14 @@ export type CartItem = {
   price: number;
   quantity: number;
 };
+
+export type CustomMeasure = {
+    id: string;
+    name: string;
+}
+
+export type CustomService = {
+    id: string;
+    label: string;
+    description: string;
+}

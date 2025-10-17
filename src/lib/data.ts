@@ -1,4 +1,4 @@
-import type { Product, User, Order } from '@/lib/types';
+import type { Product, User, Order, CustomMeasure, CustomService } from '@/lib/types';
 
 export const products: Product[] = [
   { id: '1', name: 'Organic Tomatoes', price: 4.99, description: 'Fresh, juicy, and full of flavor.', stock: 100, imagePlaceholderId: 'product-1' },
@@ -77,4 +77,19 @@ export const orders: Order[] = [
 export const cartItems = [
     { productId: '2', name: 'Sourdough Bread', price: 6.50, quantity: 1 },
     { productId: '5', name: 'Fresh Basil', price: 2.99, quantity: 2 },
+];
+
+export const customMeasures: CustomMeasure[] = [
+    { id: '1', name: 'kg' },
+    { id: '2', name: 'grams' },
+    { id: '3', name: 'liters' },
+    { id: '4', name: 'bunch' },
+    { id: '5', name: 'box' },
+];
+
+export const customServices: CustomService[] = [
+  { id: 'gift-wrapping', label: 'Gift Wrapping', description: 'We can wrap your items as a gift.' },
+  { id: 'special-sourcing', label: 'Special Sourcing', description: 'Need something not in our store? We can try to source it for you.' },
+  { id: 'bulk-order', label: 'Bulk Order Inquiry', description: 'For large quantities and special pricing.' },
+  { id: 'dietary-prep', label: 'Dietary Preparation', description: 'Let us know about your dietary needs (e.g., gluten-free, nut-free).'},
 ];

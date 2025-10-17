@@ -11,6 +11,7 @@ const navLinks = [
   { href: '/admin/users', label: 'User Management' },
   { href: '/admin/inventory', label: 'Inventory' },
   { href: '/admin/orders', label: 'Order Management' },
+  { href: '/admin/custom-order-settings', label: 'Custom Orders'},
   { href: '/admin/flyer-generator', label: 'AI Flyer Generator' },
 ];
 
@@ -36,7 +37,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </header>
       <div className="container flex-1 mt-6">
         <Tabs value={pathname} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             {navLinks.map((link) => (
               <TabsTrigger key={link.href} value={link.href} asChild>
                 <Link href={link.href}>{link.label}</Link>
