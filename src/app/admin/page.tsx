@@ -19,7 +19,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Line, LineChart } from 'recharts';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, collectionGroup } from 'firebase/firestore';
 import type { Order, User } from '@/lib/types';
 import { useMemo } from 'react';
@@ -43,8 +43,8 @@ const chartConfig = {
 export default function AdminDashboardPage() {
   const firestore = useFirestore();
 
-  const ordersQuery = useMemo(() => query(collectionGroup(firestore, 'orders')), [firestore]);
-  const usersQuery = useMemo(() => collection(firestore, 'users'), [firestore]);
+  const ordersQuery = useMemoFirebase(() => query(collectionGroup(firestore, 'orders')), [firestore]);
+  const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
