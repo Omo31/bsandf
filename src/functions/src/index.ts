@@ -1,56 +1,54 @@
 
 'use server';
 import * as admin from 'firebase-admin';
-import { onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentWritten, onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onUserCreate } from 'firebase-functions/v2/auth';
+import { UserRecord } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 
 admin.initializeApp();
 const db = admin.firestore();
 
-// The email address of the designated super admin.
-const SUPER_ADMIN_EMAIL = 'olaomo31@yahoo.co.uk';
-
 /**
  * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
- * It also grants admin role and sets custom claims for the designated super admin.
+ * It also grants admin role to the first user.
  */
 export const createFirestoreUser = onUserCreate(async (event) => {
   const user = event.data;
   const { uid, email, displayName } = user;
 
-  if (!email) {
-    console.log(`User ${uid} has no email, cannot process for admin role.`);
-    return;
-  }
-
   const userRef = db.collection('users').doc(uid);
+  const usersCollectionRef = db.collection('users');
 
+  // Split displayName into firstName and lastName, with fallbacks.
   const nameParts = displayName?.split(' ') || [];
   const firstName = nameParts[0] || 'New';
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
-  let userRole = 'user';
-
   try {
-    // Check if the new user's email matches the designated super admin email.
-    if (email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-      userRole = 'admin';
-      console.log(`Super admin user detected. Granting admin role and custom claim to ${uid}.`);
-      // Set the admin custom claim immediately. This is the most reliable method.
-      await admin.auth().setCustomUserClaims(uid, { admin: true });
-    }
-    
-    // Create the user document in Firestore with the determined role.
-    await userRef.set({
-      uid: uid,
-      email: email,
-      firstName: firstName,
-      lastName: lastName,
-      role: userRole,
-      createdAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    // Check if this is the first user
+    const userCountSnapshot = await usersCollectionRef.limit(2).get();
+    const isFirstUser = userCountSnapshot.size <= 1;
 
+    let userRole = 'user';
+    // If this is the first user, make them an admin.
+    if (isFirstUser) {
+        userRole = 'admin';
+        console.log(`First user detected. Granting admin role and custom claim to ${uid}.`);
+        // Set the custom claim immediately.
+        await admin.auth().setCustomUserClaims(uid, { admin: true });
+    }
+
+    // Create the user document with the correct role.
+    await userRef.set({
+        uid: uid,
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        role: userRole,
+        createdAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    
     console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
 
   } catch (error) {
