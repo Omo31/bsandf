@@ -20,6 +20,7 @@ import { useAuth } from '@/firebase';
 import {
   initiateEmailSignIn,
   initiateEmailSignUp,
+  initiateGoogleSignIn,
 } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
 import { FirebaseError } from 'firebase/app';
@@ -37,6 +38,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleAuthError = (error: FirebaseError) => {
     let title = 'An error occurred';
@@ -60,42 +62,18 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
         title = 'Invalid Email';
         description = 'Please enter a valid email address.';
         break;
+      case 'auth/popup-closed-by-user':
+        title = 'Sign-in Canceled';
+        description = 'The Google Sign-in popup was closed before completion.';
+        break;
+      case 'auth/account-exists-with-different-credential':
+        title = 'Account Exists';
+        description = 'An account already exists with the same email address but different sign-in credentials.';
+        break;
     }
     toast({ variant: 'destructive', title, description });
   };
   
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      if (isLogin) {
-        await initiateEmailSignIn(auth, email, password);
-      } else {
-        await initiateEmailSignUp(auth, email, password);
-      }
-      // Non-blocking functions don't throw here for auth errors,
-      // but onAuthStateChanged will redirect.
-      // We'll show a success toast and let the listener handle the redirect.
-      toast({
-        title: isLogin ? 'Login Successful!' : 'Signup Successful!',
-        description: isLogin ? "Welcome back!" : "Welcome! You're now signed up.",
-      });
-      router.push('/dashboard');
-    } catch (error) {
-      if (error instanceof FirebaseError) {
-         handleAuthError(error);
-      } else {
-         toast({ variant: 'destructive', title: 'An unexpected error occurred.', description: 'Please try again.' });
-      }
-    } finally {
-        setIsLoading(false);
-    }
-  };
-  
-  // The original non-blocking functions are designed for a different UX flow.
-  // For a traditional form submission, we want to await the result to show loading states and handle errors.
-  // So, we'll use the standard `signInWith...` and `createUserWith...` methods.
   const handleTraditionalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -125,6 +103,26 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    try {
+      await initiateGoogleSignIn(auth);
+      toast({
+        title: 'Google Sign-In Successful',
+        description: 'Welcome! Redirecting to your dashboard...',
+      });
+      router.push('/dashboard');
+    } catch (error) {
+       if (error instanceof FirebaseError) {
+            handleAuthError(error);
+        } else {
+            toast({ variant: 'destructive', title: 'An unexpected error occurred', description: (error as Error).message });
+        }
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
 
   return (
     <Card className="w-full max-w-sm">
@@ -141,12 +139,12 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid grid-cols-2 gap-6">
-            <Button variant="outline" type="button" disabled={isLoading}>
+            <Button variant="outline" type="button" disabled={isLoading || isGoogleLoading}>
               <Github className="mr-2 h-4 w-4" />
               Github
             </Button>
-            <Button variant="outline" type="button" disabled={isLoading}>
-              <Chrome className="mr-2 h-4 w-4" />
+            <Button variant="outline" type="button" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+              {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
               Google
             </Button>
           </div>
@@ -166,7 +164,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
               placeholder="m@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading}
+              disabled={isLoading || isGoogleLoading}
               required
             />
           </div>
@@ -177,14 +175,15 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
+              disabled={isLoading || isGoogleLoading}
               required
             />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? <Loader2 className="animate-spin" /> : isLogin ? 'Sign In' : 'Sign Up'}
+          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
+            {isLoading && <Loader2 className="animate-spin" />}
+            {!isLoading && (isLogin ? 'Sign In' : 'Sign Up')}
           </Button>
           <p className="text-sm text-muted-foreground">
             {isLogin ? "Don't have an account? " : 'Already have an account? '}
@@ -207,3 +206,5 @@ declare module 'firebase/auth' {
         createUserWithEmailAndPassword(email: string, password: string): Promise<UserCredential>;
     }
 }
+
+    
