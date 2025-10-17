@@ -51,7 +51,7 @@ function CheckoutForm() {
   };
 
   const handlePayment = () => {
-    if (PAYSTACK_PUBLIC_KEY === 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxx') {
+    if (PAYSTACK_PUBLIC_KEY === 'pk_test_821db0e7dee446a85dc46266e9be8999b3009a73') {
       toast({
         variant: 'destructive',
         title: 'Configuration Error',
