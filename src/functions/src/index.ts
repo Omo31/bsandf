@@ -18,24 +18,21 @@ export const createFirestoreUser = onUserCreate(async (event) => {
 
   const userRef = db.collection('users').doc(uid);
 
-  // Split displayName into firstName and lastName, with fallbacks.
   const nameParts = displayName?.split(' ') || [];
   const firstName = nameParts[0] || 'New';
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
-    // Determine user role by checking if any other users exist in Firebase Auth
     let userRole = 'user';
-    const listUsersResult = await admin.auth().listUsers(2); // Check for at most 2 users
+    const listUsersResult = await admin.auth().listUsers(2); 
 
-    // If there is only one user (the one being created), they are the first user.
+    // If only one user exists (the one just created), they are the owner.
     if (listUsersResult.users.length <= 1) {
       userRole = 'owner';
       console.log(`First user detected. Granting 'owner' role via custom claim to ${uid}.`);
       await admin.auth().setCustomUserClaims(uid, { role: 'owner' });
     }
     
-    // Create the user document in Firestore.
     await userRef.set({
         uid: uid,
         email: email || '',
@@ -47,6 +44,8 @@ export const createFirestoreUser = onUserCreate(async (event) => {
         createdAt: FieldValue.serverTimestamp(),
     });
     
+    // Re-fetch the user to ensure the claims are applied before logging completion.
+    await admin.auth().getUser(uid);
     console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
 
   } catch (error) {
@@ -75,7 +74,6 @@ export const updateInventoryOnOrderAccepted = onDocumentUpdated('users/{userId}/
         items.forEach((item: { productId: string; quantity: number }) => {
             if (item.productId && item.quantity > 0) {
                 const productRef = db.collection('products').doc(item.productId);
-                // Decrement the inventory count
                 batch.update(productRef, { stock: FieldValue.increment(-item.quantity) });
             }
         });
@@ -146,7 +144,7 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
   const afterData = event.data?.after.data();
 
   if (!beforeData || !afterData || beforeData.status === afterData.status) {
-    return; // No status change
+    return;
   }
 
   let title = `Order #${orderId} Updated`;
@@ -155,7 +153,6 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
   let shouldNotifyUser = false;
   let shouldNotifyAdmins = false;
 
-  // Determine the notification content and recipients based on the status change
   switch (afterData.status) {
     case 'Pending User Approval':
       shouldNotifyUser = true;
@@ -163,11 +160,9 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       break;
     case 'Accepted':
        shouldNotifyAdmins = true;
-       // We don't notify the user here because they initiated the action.
        break;
     case 'Rejected':
        shouldNotifyAdmins = true;
-       // We don't notify the user here.
        break;
     case 'Processing':
     case 'Shipped':
@@ -177,7 +172,6 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
   }
 
   try {
-    // Notify the user if required
     if (shouldNotifyUser) {
       const userNotification = {
         userId: userId,
@@ -192,7 +186,6 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       console.log(`Sent status update notification to user ${userId} for order ${orderId}.`);
     }
 
-    // Notify owners if required
     if (shouldNotifyAdmins) {
       const userDoc = await db.collection('users').doc(userId).get();
       const userName = userDoc.exists ? `${userDoc.data()?.firstName} ${userDoc.data()?.lastName}` : 'A customer';

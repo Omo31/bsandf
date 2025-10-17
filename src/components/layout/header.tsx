@@ -79,7 +79,7 @@ export default function Header() {
                 {label}
               </Link>
             ))}
-             {isAuthenticated && isAdmin && (
+             {isAuthenticated && (
               <Link href="/admin" className="transition-colors hover:text-foreground/80 text-foreground/60 font-semibold text-primary">
                 Admin Panel
               </Link>
@@ -114,11 +114,9 @@ export default function Header() {
                       <Link href="/dashboard" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
                         Dashboard
                       </Link>
-                      {isAdmin && (
-                        <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
-                            Admin Panel
-                        </Link>
-                      )}
+                      <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
+                          Admin Panel
+                      </Link>
                        <DropdownMenuSeparator />
                        <Button variant="ghost" className="justify-start" onClick={handleLogout}>
                           <LogOut className="mr-2 h-4 w-4" />
