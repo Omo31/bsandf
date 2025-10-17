@@ -29,7 +29,7 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '#shop', label: 'Shop' },
   { href: '/custom-order', label: 'Custom Order' },
-  { href: '#recommendations', label: 'For You' },
+  { href: '/dashboard/wishlist', label: 'For You' },
 ];
 
 export default function Header() {
@@ -133,9 +133,11 @@ export default function Header() {
                     <span>Order History</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Heart className="mr-2 h-4 w-4" />
-                  <span>Wishlist</span>
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/wishlist">
+                    <Heart className="mr-2 h-4 w-4" />
+                    <span>Wishlist</span>
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
