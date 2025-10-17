@@ -36,26 +36,26 @@ export function ChatWidget() {
     }
   }, [isUserLoading, user]);
 
-  const messagesSentQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
+  const sentMessagesQuery = useMemoFirebase(() => {
+    if (!user || !firestore || isUserLoading) return null;
     return query(
         collection(firestore, 'chat_messages'),
         where('senderId', '==', user.uid),
         where('receiverId', '==', adminId)
     );
-  }, [user, firestore, adminId]);
+  }, [user, firestore, isUserLoading, adminId]);
 
-  const messagesReceivedQuery = useMemoFirebase(() => {
-      if (!user || !firestore) return null;
+  const receivedMessagesQuery = useMemoFirebase(() => {
+      if (!user || !firestore || isUserLoading) return null;
       return query(
           collection(firestore, 'chat_messages'),
           where('senderId', '==', adminId),
           where('receiverId', '==', user.uid)
       );
-  }, [user, firestore, adminId]);
+  }, [user, firestore, isUserLoading, adminId]);
 
-  const { data: sentMessages } = useCollection<ChatMessage>(messagesSentQuery);
-  const { data: receivedMessages } = useCollection<ChatMessage>(messagesReceivedQuery);
+  const { data: sentMessages } = useCollection<ChatMessage>(sentMessagesQuery);
+  const { data: receivedMessages } = useCollection<ChatMessage>(receivedMessagesQuery);
 
   const activeMessages = useMemo(() => {
       if (!sentMessages && !receivedMessages) return [];
@@ -113,11 +113,11 @@ export function ChatWidget() {
   const closePopup = () => {
     setShowPopup(false);
   }
-
-  // Only show the widget if the user is logged in
-  if (isUserLoading || !user) {
-    return null;
+  
+  if (isUserLoading) {
+    return null; // Don't render anything while checking for user
   }
+
 
   return (
     <>
@@ -177,8 +177,8 @@ export function ChatWidget() {
               <CardContent className="flex-1 p-0">
                 <ScrollArea className="h-full p-4">
                   <div className="space-y-4">
-                     {activeMessages.map((msg) => (
-                        <ChatMessage key={msg.id} author={msg.senderId} message={msg.message} currentUserId={user.uid} />
+                     {user && activeMessages.map((msg) => (
+                        <ChatMessageDisplay key={msg.id} author={msg.senderId} message={msg.message} currentUserId={user.uid} />
                      ))}
                   </div>
                 </ScrollArea>
@@ -190,8 +190,9 @@ export function ChatWidget() {
                     className="pr-12"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
+                    disabled={!user}
                   />
-                  <Button type="submit" size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8">
+                  <Button type="submit" size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" disabled={!user}>
                     <Send className="h-4 w-4" />
                   </Button>
                 </form>
@@ -204,7 +205,7 @@ export function ChatWidget() {
   );
 }
 
-function ChatMessage({ author, message, currentUserId }: { author: string; message: string; currentUserId: string }) {
+function ChatMessageDisplay({ author, message, currentUserId }: { author: string; message: string; currentUserId: string }) {
   const isUser = author === currentUserId;
   return (
     <div className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>

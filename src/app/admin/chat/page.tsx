@@ -17,7 +17,7 @@ import type { ChatMessage, User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
-function ChatMessage({ author, message, avatar, currentAdminId }: { author: string; message: string, avatar: string, currentAdminId: string }) {
+function ChatMessageDisplay({ author, message, avatar, currentAdminId }: { author: string; message: string, avatar: string, currentAdminId: string }) {
   const isAdmin = author === currentAdminId;
   return (
     <div className={cn('flex items-end gap-2', !isAdmin ? 'justify-start' : 'justify-end')}>
@@ -47,34 +47,49 @@ export default function AdminChatPage() {
     const firestore = useFirestore();
 
     const usersQuery = useMemoFirebase(() => {
-        // Only fetch users if an admin is logged in and firestore is available
-        if (!adminUser || !firestore) return null;
+        if (!adminUser || !firestore || isAdminLoading) return null;
         return query(collection(firestore, 'users'), where('role', '==', 'user'))
-    }, [adminUser, firestore]);
+    }, [adminUser, firestore, isAdminLoading]);
     const { data: users, isLoading: areUsersLoading } = useCollection<User>(usersQuery);
 
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
 
-    const messagesQuery = useMemoFirebase(() => {
+    // Query for messages sent FROM admin TO selected user
+    const messagesToUserQuery = useMemoFirebase(() => {
         if (!adminUser || !selectedUserId || !firestore) return null;
         return query(
             collection(firestore, 'chat_messages'),
-            where('senderId', 'in', [adminUser.uid, selectedUserId]),
-            where('receiverId', 'in', [adminUser.uid, selectedUserId]),
-            orderBy('timestamp')
+            where('senderId', '==', adminUser.uid),
+            where('receiverId', '==', selectedUserId)
         );
     }, [adminUser, selectedUserId, firestore]);
-    const { data: messages, isLoading: areMessagesLoading } = useCollection<ChatMessage>(messagesQuery);
-    
-    // Filter messages to only include those for the current conversation dyad
-    const activeMessages = useMemo(() => {
-        if (!messages || !adminUser || !selectedUserId) return [];
-        return messages.filter(msg => 
-            (msg.senderId === adminUser.uid && msg.receiverId === selectedUserId) ||
-            (msg.senderId === selectedUserId && msg.receiverId === adminUser.uid)
+
+    // Query for messages sent FROM selected user TO admin
+    const messagesFromUserQuery = useMemoFirebase(() => {
+        if (!adminUser || !selectedUserId || !firestore) return null;
+        return query(
+            collection(firestore, 'chat_messages'),
+            where('senderId', '==', selectedUserId),
+            where('receiverId', '==', adminUser.uid)
         );
-    }, [messages, adminUser, selectedUserId]);
+    }, [adminUser, selectedUserId, firestore]);
+
+    const { data: messagesToUser, isLoading: isLoadingTo } = useCollection<ChatMessage>(messagesToUserQuery);
+    const { data: messagesFromUser, isLoading: isLoadingFrom } = useCollection<ChatMessage>(messagesFromUserQuery);
+
+    const areMessagesLoading = isLoadingTo || isLoadingFrom;
+
+    // Combine and sort messages
+    const activeMessages = useMemo(() => {
+        const allMessages = [...(messagesToUser || []), ...(messagesFromUser || [])];
+        // Ensure timestamps are valid before sorting
+        return allMessages.sort((a, b) => {
+            const timeA = a.timestamp?.seconds || 0;
+            const timeB = b.timestamp?.seconds || 0;
+            return timeA - timeB;
+        });
+    }, [messagesToUser, messagesFromUser]);
     
     const activeConversationUser = useMemo(() => users?.find(u => u.uid === selectedUserId), [users, selectedUserId]);
 
@@ -200,7 +215,7 @@ export default function AdminChatPage() {
                                 <div className="space-y-4">
                                    {areMessagesLoading && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />}
                                    {activeMessages.map((msg) => (
-                                       <ChatMessage key={msg.id} author={msg.senderId} message={msg.message} avatar={`https://picsum.photos/seed/${activeConversationUser.uid}/32/32`} currentAdminId={adminUser.uid}/>
+                                       <ChatMessageDisplay key={msg.id} author={msg.senderId} message={msg.message} avatar={`https://picsum.photos/seed/${activeConversationUser.uid}/32/32`} currentAdminId={adminUser.uid}/>
                                    ))}
                                 </div>
                             </ScrollArea>
