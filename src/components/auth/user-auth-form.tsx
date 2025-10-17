@@ -1,12 +1,28 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons';
-import { Github, Chrome } from 'lucide-react';
+import { Github, Chrome, Loader2 } from 'lucide-react';
+import { useAuth } from '@/firebase';
+import {
+  initiateEmailSignIn,
+  initiateEmailSignUp,
+} from '@/firebase/non-blocking-login';
+import { useToast } from '@/hooks/use-toast';
+import { FirebaseError } from 'firebase/app';
 
 interface UserAuthFormProps {
   formType: 'login' | 'signup';
@@ -14,56 +30,180 @@ interface UserAuthFormProps {
 
 export function UserAuthForm({ formType }: UserAuthFormProps) {
   const isLogin = formType === 'login';
+  const router = useRouter();
+  const auth = useAuth();
+  const { toast } = useToast();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAuthError = (error: FirebaseError) => {
+    let title = 'An error occurred';
+    let description = 'Please try again.';
+
+    switch (error.code) {
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+        title = 'Invalid Credentials';
+        description = 'The email or password you entered is incorrect.';
+        break;
+      case 'auth/email-already-in-use':
+        title = 'Email Already Exists';
+        description = 'An account with this email address already exists. Please login instead.';
+        break;
+      case 'auth/weak-password':
+        title = 'Weak Password';
+        description = 'Your password must be at least 6 characters long.';
+        break;
+      case 'auth/invalid-email':
+        title = 'Invalid Email';
+        description = 'Please enter a valid email address.';
+        break;
+    }
+    toast({ variant: 'destructive', title, description });
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      if (isLogin) {
+        await initiateEmailSignIn(auth, email, password);
+      } else {
+        await initiateEmailSignUp(auth, email, password);
+      }
+      // Non-blocking functions don't throw here for auth errors,
+      // but onAuthStateChanged will redirect.
+      // We'll show a success toast and let the listener handle the redirect.
+      toast({
+        title: isLogin ? 'Login Successful!' : 'Signup Successful!',
+        description: isLogin ? "Welcome back!" : "Welcome! You're now signed up.",
+      });
+      router.push('/dashboard');
+    } catch (error) {
+      if (error instanceof FirebaseError) {
+         handleAuthError(error);
+      } else {
+         toast({ variant: 'destructive', title: 'An unexpected error occurred.', description: 'Please try again.' });
+      }
+    } finally {
+        setIsLoading(false);
+    }
+  };
+  
+  // The original non-blocking functions are designed for a different UX flow.
+  // For a traditional form submission, we want to await the result to show loading states and handle errors.
+  // So, we'll use the standard `signInWith...` and `createUserWith...` methods.
+  const handleTraditionalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+        toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please enter both email and password.' });
+        return;
+    }
+    setIsLoading(true);
+    try {
+        if (isLogin) {
+            await auth.signInWithEmailAndPassword(email, password);
+        } else {
+            await auth.createUserWithEmailAndPassword(email, password);
+        }
+        toast({
+            title: isLogin ? 'Login Successful' : 'Account Created',
+            description: isLogin ? 'Welcome back!' : 'Redirecting to your dashboard...',
+        });
+        router.push('/dashboard');
+    } catch (error) {
+        if (error instanceof FirebaseError) {
+            handleAuthError(error);
+        } else {
+            toast({ variant: 'destructive', title: 'An unexpected error occurred', description: (error as Error).message });
+        }
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
 
   return (
     <Card className="w-full max-w-sm">
-      <CardHeader className="text-center">
-        <Link href="/" className="flex justify-center items-center space-x-2 mb-4">
-          <Logo className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold">BeautifulSoup&Food</span>
-        </Link>
-        <CardTitle className="text-2xl">{isLogin ? 'Welcome back' : 'Create an account'}</CardTitle>
-        <CardDescription>
-          {isLogin ? 'Enter your email to sign in to your account' : 'Enter your email below to create your account'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid grid-cols-2 gap-6">
-          <Button variant="outline">
-            <Github className="mr-2 h-4 w-4" />
-            Github
-          </Button>
-          <Button variant="outline">
-            <Chrome className="mr-2 h-4 w-4" />
-            Google
-          </Button>
-        </div>
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-          </div>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" placeholder="m@example.com" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" />
-        </div>
-      </CardContent>
-      <CardFooter className="flex flex-col space-y-4">
-        <Button className="w-full">{isLogin ? 'Sign In' : 'Sign Up'}</Button>
-        <p className="text-sm text-muted-foreground">
-          {isLogin ? "Don't have an account? " : 'Already have an account? '}
-          <Link href={isLogin ? '/signup' : '/login'} className="underline hover:text-primary">
-            {isLogin ? 'Sign up' : 'Sign in'}
+      <form onSubmit={handleTraditionalSubmit}>
+        <CardHeader className="text-center">
+          <Link href="/" className="flex justify-center items-center space-x-2 mb-4">
+            <Logo className="h-8 w-8 text-primary" />
+            <span className="text-xl font-bold">BeautifulSoup&Food</span>
           </Link>
-        </p>
-      </CardFooter>
+          <CardTitle className="text-2xl">{isLogin ? 'Welcome back' : 'Create an account'}</CardTitle>
+          <CardDescription>
+            {isLogin ? 'Enter your email to sign in to your account' : 'Enter your email below to create your account'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid grid-cols-2 gap-6">
+            <Button variant="outline" type="button" disabled={isLoading}>
+              <Github className="mr-2 h-4 w-4" />
+              Github
+            </Button>
+            <Button variant="outline" type="button" disabled={isLoading}>
+              <Chrome className="mr-2 h-4 w-4" />
+              Google
+            </Button>
+          </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="m@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading}
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
+              required
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-4">
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin" /> : isLogin ? 'Sign In' : 'Sign Up'}
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            {isLogin ? "Don't have an account? " : 'Already have an account? '}
+            <Link href={isLogin ? '/signup' : '/login'} className="underline hover:text-primary">
+              {isLogin ? 'Sign up' : 'Sign in'}
+            </Link>
+          </p>
+        </CardFooter>
+      </form>
     </Card>
   );
+}
+
+// Override original non-blocking functions with standard awaited versions
+// This is a temporary adjustment to fit the traditional form submission UX
+// where immediate feedback (loading state, error message) is crucial.
+declare module 'firebase/auth' {
+    interface Auth {
+        signInWithEmailAndPassword(email: string, password: string): Promise<UserCredential>;
+        createUserWithEmailAndPassword(email: string, password: string): Promise<UserCredential>;
+    }
 }
