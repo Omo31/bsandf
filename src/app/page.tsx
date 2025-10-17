@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -6,10 +8,24 @@ import { ProductCard } from '@/components/shop/product-card';
 import { products, recommendedProducts } from '@/lib/data';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { ArrowRight } from 'lucide-react';
+import { useUser } from '@/firebase';
+import { useEffect, useState }from 'react';
 
 export default function Home() {
   const flyerImage = placeholderImages.find(p => p.id === 'flyer-1');
   const heroImage = placeholderImages.find(p => p.id === 'hero-1');
+  const { user, isUserLoading } = useUser();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      user.getIdTokenResult().then(idTokenResult => {
+        setIsAdmin(!!idTokenResult.claims.admin);
+      });
+    } else {
+      setIsAdmin(false);
+    }
+  }, [user]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -44,43 +60,45 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="flyer" className="w-full py-12 md:py-24 lg:py-32 bg-background">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
-              <div className="flex flex-col justify-center space-y-4">
-                <div className="space-y-2">
-                  <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">AI-Generated Ad</div>
-                  <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">This Week's Special Offer</h2>
-                  <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                    Discover our latest promotion, crafted just for you by our AI. Don't miss out on these exclusive deals, available for a limited time only!
-                  </p>
+        {!isUserLoading && isAdmin && (
+          <section id="flyer" className="w-full py-12 md:py-24 lg:py-32 bg-background">
+            <div className="container mx-auto px-4 md:px-6">
+              <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
+                <div className="flex flex-col justify-center space-y-4">
+                  <div className="space-y-2">
+                    <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">AI-Generated Ad</div>
+                    <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">This Week's Special Offer</h2>
+                    <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                      Discover our latest promotion, crafted just for you by our AI. Don't miss out on these exclusive deals, available for a limited time only!
+                    </p>
+                  </div>
+                  <Button asChild className="self-start">
+                    <Link href="/admin/flyer-generator">
+                      Generate Your Own Ad
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
                 </div>
-                <Button asChild className="self-start">
-                  <Link href="/admin/flyer-generator">
-                    Generate Your Own Ad
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+                <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+                  <CardContent className="p-0">
+                    {flyerImage ? (
+                      <Image
+                        src={flyerImage.imageUrl}
+                        alt={flyerImage.description}
+                        width={600}
+                        height={400}
+                        className="object-cover w-full h-auto aspect-[3/2]"
+                        data-ai-hint={flyerImage.imageHint}
+                      />
+                    ) : (
+                       <div className="w-full aspect-[3/2] bg-muted animate-pulse" />
+                    )}
+                  </CardContent>
+                </Card>
               </div>
-              <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                <CardContent className="p-0">
-                  {flyerImage ? (
-                    <Image
-                      src={flyerImage.imageUrl}
-                      alt={flyerImage.description}
-                      width={600}
-                      height={400}
-                      className="object-cover w-full h-auto aspect-[3/2]"
-                      data-ai-hint={flyerImage.imageHint}
-                    />
-                  ) : (
-                     <div className="w-full aspect-[3/2] bg-muted animate-pulse" />
-                  )}
-                </CardContent>
-              </Card>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
 
         <section id="shop" className="w-full py-12 md:py-24 lg:py-32 bg-secondary/30">
