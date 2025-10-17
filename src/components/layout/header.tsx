@@ -42,7 +42,7 @@ export default function Header() {
   const [isClient, setIsClient] = useState(false);
   
   const { user, isUserLoading } = useUser();
-  const { isAdmin } = useAdmin();
+  const { isAdmin } = useAdmin(); // Use the reliable hook
   const auth = useAuth();
   
   useEffect(() => {
@@ -79,7 +79,7 @@ export default function Header() {
                 {label}
               </Link>
             ))}
-             {isAuthenticated && (
+             {isAdmin && (
               <Link href="/admin" className="transition-colors hover:text-foreground/80 text-foreground/60 font-semibold text-primary">
                 Admin Panel
               </Link>
@@ -114,9 +114,11 @@ export default function Header() {
                       <Link href="/dashboard" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
                         Dashboard
                       </Link>
-                      <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
-                          Admin Panel
-                      </Link>
+                      {isAdmin && 
+                        <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
+                            Admin Panel
+                        </Link>
+                      }
                        <DropdownMenuSeparator />
                        <Button variant="ghost" className="justify-start" onClick={handleLogout}>
                           <LogOut className="mr-2 h-4 w-4" />

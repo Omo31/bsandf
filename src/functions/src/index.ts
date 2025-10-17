@@ -23,12 +23,16 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
-    let userRole = 'user';
-    const listUsersResult = await admin.auth().listUsers(2); 
-
-    // If only one user exists (the one just created), they are the owner.
-    if (listUsersResult.users.length <= 1) {
-      userRole = 'owner';
+    // Check if any other users exist in Firebase Authentication.
+    // Listing 2 users is a quick way to see if there's more than just the one being created.
+    const listUsersResult = await admin.auth().listUsers(2);
+    
+    // If only one user exists (the one just created), they become the owner.
+    const isFirstUser = listUsersResult.users.length <= 1;
+    const userRole = isFirstUser ? 'owner' : 'user';
+    
+    // Set custom claim for role-based access.
+    if (isFirstUser) {
       console.log(`First user detected. Granting 'owner' role via custom claim to ${uid}.`);
       await admin.auth().setCustomUserClaims(uid, { role: 'owner' });
     }
@@ -45,7 +49,9 @@ export const createFirestoreUser = onUserCreate(async (event) => {
     });
     
     // Re-fetch the user to ensure the claims are applied before logging completion.
-    await admin.auth().getUser(uid);
+    if(isFirstUser) {
+        await admin.auth().getUser(uid);
+    }
     console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
 
   } catch (error) {
