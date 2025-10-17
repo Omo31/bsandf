@@ -14,12 +14,20 @@ import { Label } from '@/components/ui/label';
 import { users } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+
+const notificationSettings = [
+  { id: 'new-offers', label: 'New Special Offers', description: 'Receive notifications about new promotions and discounts.' },
+  { id: 'order-updates', label: 'Order Status Updates', description: 'Get updates on your order status, including shipping and delivery.' },
+  { id: 'recommendations', label: 'Personalized Recommendations', description: 'Receive product recommendations based on your purchase history.' },
+  { id: 'newsletter', label: 'Weekly Newsletter', description: 'Subscribe to our weekly newsletter with recipes and tips.' },
+];
 
 export default function ProfilePage() {
   const user = users[1]; // Mock user
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
+    <div className="flex-1 space-y-8 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">User Profile</h2>
@@ -67,8 +75,31 @@ export default function ProfilePage() {
             </div>
         </CardContent>
         <CardFooter>
-          <Button>Save Changes</Button>
+          <Button>Save Profile</Button>
         </CardFooter>
+      </Card>
+       <Card>
+        <CardHeader>
+          <CardTitle>Email Notifications</CardTitle>
+          <CardDescription>
+            Choose which emails you want to receive.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {notificationSettings.map((setting) => (
+            <div key={setting.id} className="flex items-center justify-between space-x-4 rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor={setting.id} className="text-base">
+                  {setting.label}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                    {setting.description}
+                </p>
+              </div>
+              <Switch id={setting.id} defaultChecked={setting.id !== 'newsletter'}/>
+            </div>
+          ))}
+        </CardContent>
       </Card>
     </div>
   );
