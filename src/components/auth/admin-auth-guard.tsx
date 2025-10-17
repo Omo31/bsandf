@@ -9,42 +9,48 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const { user: currentUser, isUserLoading } = useUser();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [authStatus, setAuthStatus] = useState<'loading' | 'admin' | 'non-admin' | 'no-user'>('loading');
   const router = useRouter();
 
   useEffect(() => {
+    // If the initial user check is still happening, we wait.
     if (isUserLoading) {
-      return; // Wait until the initial user state is loaded.
+      setAuthStatus('loading');
+      return;
     }
 
+    // If no user is logged in, redirect them to the login page.
     if (!currentUser) {
+      setAuthStatus('no-user');
       router.push('/login');
       return;
     }
 
-    // Force a refresh of the ID token to get the latest custom claims.
-    // This is crucial to ensure the 'admin' claim set by a Cloud Function is available.
+    // User is logged in, now check their admin claim.
+    // We force a refresh of the token to get the latest custom claims.
     currentUser.getIdTokenResult(true) 
       .then((idTokenResult) => {
         const isAdminClaim = !!idTokenResult.claims.admin;
-        setIsAdmin(isAdminClaim);
-        
-        if (!isAdminClaim) {
-          // If not an admin, redirect to the user dashboard.
+        if (isAdminClaim) {
+          setAuthStatus('admin');
+        } else {
+          // User is logged in but not an admin.
+          setAuthStatus('non-admin');
           router.push('/dashboard');
         }
       })
       .catch(error => {
-        console.error("Error getting user token or checking admin claim:", error);
-        setIsAdmin(false);
+        console.error("Error verifying admin status:", error);
+        // On error, treat as a non-admin for security and redirect.
+        setAuthStatus('non-admin');
         router.push('/dashboard');
       });
 
   }, [currentUser, isUserLoading, router]);
 
-  // While we are checking for the user and their claims, show a loading skeleton.
-  // This prevents the "flicker" of the admin panel appearing and disappearing.
-  if (isUserLoading || isAdmin === null) {
+  // While we are verifying, show a full-page loading skeleton.
+  // This prevents any "flicker" of content.
+  if (authStatus !== 'admin') {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
         <div className="w-full max-w-4xl space-y-4">
@@ -65,7 +71,6 @@ export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If the checks are complete and the user is an admin, render the children.
-  // Otherwise, this will be null while the redirection occurs.
-  return isAdmin ? <>{children}</> : null;
+  // If status is 'admin', render the admin content.
+  return <>{children}</>;
 }
