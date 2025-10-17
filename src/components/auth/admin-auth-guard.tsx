@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase';
@@ -12,37 +13,37 @@ export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // If auth state is still loading, do nothing yet.
     if (isUserLoading) {
-      return;
+      return; // Wait until the initial user state is loaded.
     }
 
-    // If there's no user, redirect to login.
     if (!currentUser) {
       router.push('/login');
       return;
     }
 
-    // User exists, now check their admin claim. Forcing a refresh (true) gets the latest claims.
+    // Force a refresh of the ID token to get the latest custom claims.
+    // This is crucial to ensure the 'admin' claim set by a Cloud Function is available.
     currentUser.getIdTokenResult(true) 
       .then((idTokenResult) => {
         const isAdminClaim = !!idTokenResult.claims.admin;
         setIsAdmin(isAdminClaim);
         
-        // If they are not an admin, redirect them away.
         if (!isAdminClaim) {
+          // If not an admin, redirect to the user dashboard.
           router.push('/dashboard');
         }
       })
       .catch(error => {
-        console.error("Error getting user token:", error);
+        console.error("Error getting user token or checking admin claim:", error);
         setIsAdmin(false);
         router.push('/dashboard');
       });
 
   }, [currentUser, isUserLoading, router]);
 
-  // While we are checking, show a loading skeleton.
+  // While we are checking for the user and their claims, show a loading skeleton.
+  // This prevents the "flicker" of the admin panel appearing and disappearing.
   if (isUserLoading || isAdmin === null) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
@@ -64,7 +65,7 @@ export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If the user is an admin, render the actual admin content.
-  // If not, this will be null while the redirection happens.
+  // If the checks are complete and the user is an admin, render the children.
+  // Otherwise, this will be null while the redirection occurs.
   return isAdmin ? <>{children}</> : null;
 }
