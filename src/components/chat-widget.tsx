@@ -36,25 +36,38 @@ export function ChatWidget() {
     }
   }, [isUserLoading, user]);
 
-  const messagesQuery = useMemoFirebase(() => {
+  // Secure query for messages sent by the user
+  const messagesSentQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
         collection(firestore, 'chat_messages'),
-        where('senderId', 'in', [user.uid, adminId]),
-        where('receiverId', 'in', [user.uid, adminId]),
+        where('senderId', '==', user.uid),
+        where('receiverId', '==', adminId),
         orderBy('timestamp')
     );
   }, [user, firestore, adminId]);
 
-  const { data: allMessages, isLoading: areMessagesLoading } = useCollection<ChatMessage>(messagesQuery);
+  // Secure query for messages received by the user
+  const messagesReceivedQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+        collection(firestore, 'chat_messages'),
+        where('senderId', '==', adminId),
+        where('receiverId', '==', user.uid),
+        orderBy('timestamp')
+    );
+  }, [user, firestore, adminId]);
+
+  const { data: sentMessages, isLoading: isLoadingSent } = useCollection<ChatMessage>(messagesSentQuery);
+  const { data: receivedMessages, isLoading: isLoadingReceived } = useCollection<ChatMessage>(messagesReceivedQuery);
   
+  const areMessagesLoading = isLoadingSent || isLoadingReceived;
+
   const activeMessages = useMemo(() => {
-      if (!allMessages || !user) return [];
-      return allMessages.filter(msg => 
-          (msg.senderId === user.uid && msg.receiverId === adminId) ||
-          (msg.senderId === adminId && msg.receiverId === user.uid)
-      );
-  }, [allMessages, user, adminId]);
+      if (!sentMessages || !receivedMessages) return [];
+      // Combine and sort the messages from both queries
+      return [...sentMessages, ...receivedMessages].sort((a, b) => a.timestamp?.toMillis() - b.timestamp?.toMillis());
+  }, [sentMessages, receivedMessages]);
 
 
   const handleSendMessage = async (e: React.FormEvent) => {

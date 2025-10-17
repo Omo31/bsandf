@@ -47,7 +47,7 @@ export default function AdminChatPage() {
     const firestore = useFirestore();
 
     const usersQuery = useMemoFirebase(() => {
-        if (!firestore || !adminUser) return null; // Wait for admin user
+        if (!firestore || !adminUser) return null;
         return query(collection(firestore, 'users'), where('role', '==', 'user'))
     }, [firestore, adminUser]);
 
@@ -56,26 +56,36 @@ export default function AdminChatPage() {
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
 
-    const messagesQuery = useMemoFirebase(() => {
+    // Secure queries for messages
+    const messagesSentByAdminQuery = useMemoFirebase(() => {
         if (!adminUser || !selectedUserId || !firestore) return null;
         return query(
             collection(firestore, 'chat_messages'),
-            where('senderId', 'in', [adminUser.uid, selectedUserId]),
-            where('receiverId', 'in', [adminUser.uid, selectedUserId]),
+            where('senderId', '==', adminUser.uid),
+            where('receiverId', '==', selectedUserId),
             orderBy('timestamp')
         );
     }, [adminUser, selectedUserId, firestore]);
 
-    const { data: allMessages, isLoading: areMessagesLoading } = useCollection<ChatMessage>(messagesQuery);
-    
-    // Filter messages on the client side
-    const activeMessages = useMemo(() => {
-        if (!allMessages || !adminUser || !selectedUserId) return [];
-        return allMessages.filter(msg =>
-            (msg.senderId === adminUser.uid && msg.receiverId === selectedUserId) ||
-            (msg.senderId === selectedUserId && msg.receiverId === adminUser.uid)
+    const messagesReceivedByAdminQuery = useMemoFirebase(() => {
+        if (!adminUser || !selectedUserId || !firestore) return null;
+        return query(
+            collection(firestore, 'chat_messages'),
+            where('senderId', '==', selectedUserId),
+            where('receiverId', '==', adminUser.uid),
+            orderBy('timestamp')
         );
-    }, [allMessages, adminUser, selectedUserId]);
+    }, [adminUser, selectedUserId, firestore]);
+    
+    const { data: sentMessages, isLoading: isLoadingSent } = useCollection<ChatMessage>(messagesSentByAdminQuery);
+    const { data: receivedMessages, isLoading: isLoadingReceived } = useCollection<ChatMessage>(messagesReceivedByAdminQuery);
+
+    const areMessagesLoading = isLoadingSent || isLoadingReceived;
+
+    const activeMessages = useMemo(() => {
+        if (!sentMessages || !receivedMessages) return [];
+        return [...sentMessages, ...receivedMessages].sort((a, b) => a.timestamp?.toMillis() - b.timestamp?.toMillis());
+    }, [sentMessages, receivedMessages]);
     
     const activeConversationUser = useMemo(() => users?.find(u => u.uid === selectedUserId), [users, selectedUserId]);
 
@@ -88,7 +98,7 @@ export default function AdminChatPage() {
             receiverId: selectedUserId,
             message: newMessage,
             timestamp: serverTimestamp(),
-            senderName: `${adminUser.displayName}`, // Assuming admin has a name
+            senderName: `${adminUser.displayName}`,
             receiverName: `${activeConversationUser?.firstName} ${activeConversationUser?.lastName}`,
         };
 
@@ -100,7 +110,6 @@ export default function AdminChatPage() {
         }
     };
     
-    // Effect to select the first user by default once the user list has loaded
     useEffect(() => {
         if (users && users.length > 0 && !selectedUserId) {
             setSelectedUserId(users[0].uid);
