@@ -20,8 +20,8 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Line, LineChart } from 'recharts';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, collectionGroup } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, collectionGroup } from 'firebase/firestore';
 import type { Order, User } from '@/lib/types';
 import { useMemo, useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,18 +50,18 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (isUserLoading) {
-      return; // Wait for user to be loaded
+      return; 
     }
     if (!currentUser) {
-      router.push('/login'); // Redirect if not logged in
+      router.push('/login');
       return;
     }
     currentUser.getIdTokenResult().then((idTokenResult) => {
       const isAdminClaim = !!idTokenResult.claims.admin;
+      setIsAdmin(isAdminClaim);
       if (!isAdminClaim) {
         router.push('/dashboard');
       }
-      setIsAdmin(isAdminClaim);
     });
   }, [currentUser, isUserLoading, router]);
 
@@ -102,7 +102,6 @@ export default function AdminDashboardPage() {
     return { totalRevenue, sales, newUsers, salesByMonth };
   }, [orders, users]);
   
-  // Render loading state until admin status is confirmed
   if (isUserLoading || isAdmin === null) {
       return (
     <div className="flex-1 space-y-4 pt-6">
@@ -145,15 +144,6 @@ export default function AdminDashboardPage() {
       </div>
     </div>
       )
-  }
-
-  // If isAdmin is false, the redirect is already in progress, render a message.
-  if (!isAdmin) {
-      return (
-          <div className="flex-1 space-y-4 pt-6 text-center">
-              <p>Redirecting...</p>
-          </div>
-      );
   }
 
   return (
@@ -287,5 +277,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    

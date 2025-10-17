@@ -66,8 +66,6 @@ function UserActions({ user: targetUser }: { user: WithId<User> }) {
         await setDoc(adminRoleRef, { uid: targetUser.uid }); // Add any relevant data
         toast({ title: 'Admin Granted', description: `${targetUser.firstName} is now an admin.` });
       }
-      // Note: A full implementation would wait for the cloud function to update the user's `role` field.
-      // For optimistic UI, we can toggle it here.
       setIsAdminRole(!isAdminRole);
     } catch (error) {
       console.error('Error toggling admin status:', error);
@@ -76,8 +74,6 @@ function UserActions({ user: targetUser }: { user: WithId<User> }) {
   };
 
   const handleDeleteUser = () => {
-    // This is a placeholder. A real implementation would require a Cloud Function
-    // to delete the user from Auth and all their associated data in Firestore.
     toast({
       variant: 'destructive',
       title: 'Action Not Implemented',
@@ -144,20 +140,18 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     if (isUserLoading) {
-      return; // Wait until user loading is complete
-    }
-
-    if (!currentUser) {
-      router.push('/login'); // Redirect if not logged in
       return;
     }
-
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
     currentUser.getIdTokenResult().then((idTokenResult) => {
       const isAdminClaim = !!idTokenResult.claims.admin;
-       if (!isAdminClaim) {
+      setIsAdmin(isAdminClaim);
+      if (!isAdminClaim) {
         router.push('/dashboard');
       }
-      setIsAdmin(isAdminClaim);
     });
   }, [currentUser, isUserLoading, router]);
 
@@ -167,9 +161,7 @@ export default function UserManagementPage() {
   );
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
 
-  const isLoading = isUserLoading || isAdmin === null || (isAdmin && isLoadingUsers);
-
-  if (isLoading) {
+  if (isUserLoading || isAdmin === null) {
     return (
     <div className="flex-1 space-y-4 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -220,11 +212,6 @@ export default function UserManagementPage() {
     )
   }
 
-  // If isAdmin is false, the redirect is already in progress.
-  if (!isAdmin) {
-    return <div className="flex-1 space-y-4 pt-6 text-center"><p>Redirecting...</p></div>;
-  }
-
   return (
     <div className="flex-1 space-y-4 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -254,6 +241,25 @@ export default function UserManagementPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {isLoadingUsers && [...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div>
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-3 w-32 mt-1" />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-8 w-8 ml-auto" />
+                    </TableCell>
+                  </TableRow>
+                ))}
               {users &&
                 users.map((user) => (
                   <TableRow key={user.id}>
@@ -287,5 +293,3 @@ export default function UserManagementPage() {
     </div>
   );
 }
-
-    
