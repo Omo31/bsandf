@@ -73,7 +73,7 @@ const OrderTable = ({ statusFilter }: { statusFilter?: string[] }) => {
                     <TableCell>
                       <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">₦{order.total.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

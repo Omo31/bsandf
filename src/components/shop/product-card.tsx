@@ -35,7 +35,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
       </CardContent>
       <CardFooter className="p-4 flex justify-between items-center">
-        <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
+        <p className="text-lg font-bold text-primary">₦{product.price.toFixed(2)}</p>
         <Button size="sm">
           <ShoppingCart className="mr-2 h-4 w-4" />
           Add to cart

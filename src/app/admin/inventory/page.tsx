@@ -94,7 +94,7 @@ export default function InventoryPage() {
                         {product.stock > 20 ? 'In Stock' : product.stock > 0 ? 'Low Stock' : 'Out of Stock'}
                       </Badge>
                     </TableCell>
-                    <TableCell>${product.price.toFixed(2)}</TableCell>
+                    <TableCell>₦{product.price.toFixed(2)}</TableCell>
                     <TableCell className="hidden md:table-cell">
                       {product.stock}
                     </TableCell>

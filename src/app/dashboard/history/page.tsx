@@ -57,7 +57,7 @@ const HistoryTable = ({ statusFilter }: { statusFilter: ('Accepted' | 'Canceled'
                                 <TableCell>
                                     <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
                                 </TableCell>
-                                <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">₦{order.total.toFixed(2)}</TableCell>
                                 <TableCell className="text-right">
                                     {order.status === 'Draft' ? (
                                         <Button variant="outline" size="sm">

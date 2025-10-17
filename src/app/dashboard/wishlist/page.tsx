@@ -39,7 +39,7 @@ export default function WishlistPage() {
                 <CardTitle className="text-lg">{product.name}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-lg font-semibold">${product.price.toFixed(2)}</p>
+                <p className="text-lg font-semibold">₦{product.price.toFixed(2)}</p>
               </CardContent>
               <CardFooter className="flex-col items-stretch space-y-2">
                 <Button>

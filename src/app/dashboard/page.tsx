@@ -72,13 +72,13 @@ export default function UserDashboardPage() {
                             <p className="font-semibold">Status: <Badge>{recentOrder.status}</Badge></p>
                             <p className="text-sm text-muted-foreground">Date: {new Date(recentOrder.date).toLocaleDateString()}</p>
                         </div>
-                        <p className="text-xl font-bold">${recentOrder.total.toFixed(2)}</p>
+                        <p className="text-xl font-bold">₦{recentOrder.total.toFixed(2)}</p>
                      </div>
                      <ul className="space-y-2">
                         {recentOrder.items.map(item => (
                             <li key={item.productId} className="flex justify-between items-center text-sm">
                                 <span>{item.name} (x{item.quantity})</span>
-                                <span>${(item.price * item.quantity).toFixed(2)}</span>
+                                <span>₦{(item.price * item.quantity).toFixed(2)}</span>
                             </li>
                         ))}
                      </ul>

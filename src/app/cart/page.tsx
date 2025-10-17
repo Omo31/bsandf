@@ -36,7 +36,7 @@ export default function CartPage() {
                       )}
                       <div className="flex-grow">
                         <p className="font-semibold">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
+                        <p className="text-sm text-muted-foreground">₦{item.price.toFixed(2)}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="icon" className="h-8 w-8">
@@ -65,16 +65,16 @@ export default function CartPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>₦{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Service Charge (6%)</span>
-                <span>${serviceCharge.toFixed(2)}</span>
+                <span>₦{serviceCharge.toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>₦{total.toFixed(2)}</span>
               </div>
             </CardContent>
             <CardFooter className="flex-col gap-2">
