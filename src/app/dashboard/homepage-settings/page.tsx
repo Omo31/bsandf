@@ -86,7 +86,7 @@ export default function HomepageSettingsPage() {
 
   if (isLoading) {
       return (
-          <div className="flex-1 space-y-8 pt-6">
+          <div className="flex-1 space-y-8">
              <Skeleton className="h-10 w-1/3" />
              <Skeleton className="h-6 w-2/3" />
              <div className="grid gap-8 md:grid-cols-2">
@@ -119,7 +119,7 @@ export default function HomepageSettingsPage() {
   }
 
   return (
-    <div className="flex-1 space-y-8 pt-6">
+    <div className="flex-1 space-y-8">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Homepage Settings</h2>
@@ -198,5 +198,3 @@ export default function HomepageSettingsPage() {
     </div>
   );
 }
-
-    

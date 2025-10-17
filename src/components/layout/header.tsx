@@ -42,7 +42,7 @@ export default function Header() {
   const [isClient, setIsClient] = useState(false);
   
   const { user, isUserLoading } = useUser();
-  const { isAdmin } = useAdmin(); // Use the reliable hook
+  const { isAdmin } = useAdmin();
   const auth = useAuth();
   
   useEffect(() => {
@@ -79,11 +79,6 @@ export default function Header() {
                 {label}
               </Link>
             ))}
-             {isAdmin && (
-              <Link href="/admin" className="transition-colors hover:text-foreground/80 text-foreground/60 font-semibold text-primary">
-                Admin Panel
-              </Link>
-            )}
           </nav>
         </div>
         
@@ -114,11 +109,6 @@ export default function Header() {
                       <Link href="/dashboard" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
                         Dashboard
                       </Link>
-                      {isAdmin && 
-                        <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
-                            Admin Panel
-                        </Link>
-                      }
                        <DropdownMenuSeparator />
                        <Button variant="ghost" className="justify-start" onClick={handleLogout}>
                           <LogOut className="mr-2 h-4 w-4" />
@@ -198,21 +188,6 @@ export default function Header() {
                       <span>Wishlist</span>
                     </Link>
                   </DropdownMenuItem>
-                  
-                  
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin">
-                          <ShieldCheck className="mr-2 h-4 w-4" />
-                          <span>Admin Panel</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  
-                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
