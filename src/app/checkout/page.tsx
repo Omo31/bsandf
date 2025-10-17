@@ -10,7 +10,7 @@ import { useUser } from '@/firebase';
 import { CreditCard, Loader2 } from 'lucide-react';
 
 // IMPORTANT: You must replace this with your actual Paystack public key
-const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxx'; // <--- REPLACE THIS
+const PAYSTACK_PUBLIC_KEY = 'pk_test_821db0e7dee446a85dc46266e9be8999b3009a73'; // <--- REPLACE THIS
 
 function CheckoutForm() {
   const searchParams = useSearchParams();
