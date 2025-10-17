@@ -43,7 +43,7 @@ export default function Header() {
   
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
-  const { isAdmin, isCheckingAdmin } = useAdmin();
+  const { isAdmin } = useAdmin();
   
   useEffect(() => {
     setIsClient(true);
@@ -79,6 +79,11 @@ export default function Header() {
                 {label}
               </Link>
             ))}
+             {isAdmin && (
+              <Link href="/admin" className="transition-colors hover:text-foreground/80 text-foreground/60 font-semibold text-primary">
+                Admin
+              </Link>
+            )}
           </nav>
         </div>
         
@@ -238,3 +243,5 @@ export default function Header() {
     </header>
   );
 }
+
+    
