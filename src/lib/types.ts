@@ -88,3 +88,13 @@ export type ChatMessage = {
   senderName?: string;
   receiverName?: string;
 };
+
+export type HomePageSettings = {
+    id: string;
+    heroTitle: string;
+    heroSubtitle: string;
+    heroImageUrl: string;
+    featuredProductIds: string[];
+};
+
+    

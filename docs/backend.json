@@ -349,6 +349,44 @@
         }
       },
       "required": ["id", "userId", "title", "message", "isRead", "timestamp"]
+    },
+    "HomePageSettings": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "HomePageSettings",
+      "type": "object",
+      "description": "Configuration for the application's home page.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the settings document (e.g., 'home_page')."
+        },
+        "heroTitle": {
+          "type": "string",
+          "description": "The main headline for the hero section."
+        },
+        "heroSubtitle": {
+          "type": "string",
+          "description": "The subtitle or supporting text for the hero section."
+        },
+        "heroImageUrl": {
+          "type": "string",
+          "description": "URL for the hero background image.",
+          "format": "uri"
+        },
+        "featuredProductIds": {
+          "type": "array",
+          "description": "An array of Product IDs to feature on the home page.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "heroTitle",
+        "heroSubtitle",
+        "heroImageUrl"
+      ]
     }
   },
   "auth": {
@@ -523,9 +561,25 @@
             }
           ]
         }
+      },
+      {
+        "path": "/settings/{settingId}",
+        "definition": {
+          "entityName": "HomePageSettings",
+          "schema": {
+            "$ref": "#/backend/entities/HomePageSettings"
+          },
+          "description": "Stores global application settings. Writable only by admins.",
+          "params": [
+            {
+              "name": "settingId",
+              "description": "The unique identifier for the setting document (e.g., 'home_page')."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features, focusing on security, scalability, and debuggability, especially regarding authorization independence and query performance. User data, products, orders, cart items, chat messages, flyers, and service checklist items are organized into collections that align with access patterns and business requirements.\n\n1.  **Authorization Independence:** User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization. For collaborative data like chat messages (between users and admins), a dedicated collection `/chat_messages` is used, and each document includes both `senderId` and `receiverId` for direct access control, avoiding the need for `get()` calls in security rules.  The `ServiceChecklistItem` includes the `orderId`.\n\n2.  **Structural Segregation:** Different data types with distinct access requirements are stored in separate collections.  User profiles are kept in `/users/{userId}`, while products are in `/products`.  This separation simplifies security rules by ensuring that all documents within a collection share the same access control logic.\n\n3.  **Access Modeling:** Path-based ownership is used extensively for user-owned data. For example, orders are stored under `/users/{userId}/orders/{orderId}`, ensuring that only the user and admins can access specific order information. The admin roles are stored in `/roles_admin/{uid}`. This existence-based check allows simple, efficient authorization. The Membership Map is not used in this implementation.\n\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations by segregating data based on access levels and using path-based authorization.  For example, listing orders under `/users/{userId}/orders` is secure because the path inherently restricts access to the user's own orders. The global flyers are stored in `/flyers` which will support a public list, and can be updated by admins only.\n\nThis design ensures that security rules can be written clearly and efficiently without relying on complex data hierarchies or server-side filtering, promoting a more secure and scalable application."
+    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features, focusing on security, scalability, and debuggability, especially regarding authorization independence and query performance. User data, products, orders, cart items, chat messages, flyers, service checklist items and general settings are organized into collections that align with access patterns and business requirements.\n\n1.  **Authorization Independence:** User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization. For collaborative data like chat messages (between users and admins), a dedicated collection `/chat_messages` is used, and each document includes both `senderId` and `receiverId` for direct access control, avoiding the need for `get()` calls in security rules.  The `ServiceChecklistItem` includes the `orderId`.\n\n2.  **Structural Segregation:** Different data types with distinct access requirements are stored in separate collections.  User profiles are kept in `/users/{userId}`, while products are in `/products`. A new `/settings` collection is added for site-wide configurations, like home page content. This separation simplifies security rules by ensuring that all documents within a collection share the same access control logic.\n\n3.  **Access Modeling:** Path-based ownership is used extensively for user-owned data. For example, orders are stored under `/users/{userId}/orders/{orderId}`, ensuring that only the user and admins can access specific order information. The admin roles are stored in `/roles_admin/{uid}`. This existence-based check allows simple, efficient authorization. The Membership Map is not used in this implementation.\n\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations by segregating data based on access levels and using path-based authorization.  For example, listing orders under `/users/{userId}/orders` is secure because the path inherently restricts access to the user's own orders. The global flyers are stored in `/flyers` which will support a public list, and can be updated by admins only. The `/settings` collection is readable by all but only writable by admins.\n\nThis design ensures that security rules can be written clearly and efficiently without relying on complex data hierarchies or server-side filtering, promoting a more secure and scalable application."
   }
 }
 

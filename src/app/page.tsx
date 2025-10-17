@@ -7,21 +7,35 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { ProductCard } from '@/components/shop/product-card';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { ArrowRight } from 'lucide-react';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import type { Product, WithId } from '@/lib/types';
-import { collection } from 'firebase/firestore';
+import { useUser, useCollection, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import type { Product, WithId, HomePageSettings } from '@/lib/types';
+import { collection, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect, useState }from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 export default function Home() {
   const flyerImage = placeholderImages.find(p => p.id === 'flyer-1');
-  const heroImage = placeholderImages.find(p => p.id === 'hero-1');
+  
   const { user, isUserLoading } = useUser();
   const [isAdmin, setIsAdmin] = useState(false);
-
   const firestore = useFirestore();
+
+  // Fetch homepage settings
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'home_page'), [firestore]);
+  const { data: settings, isLoading: isLoadingSettings } = useDoc<HomePageSettings>(settingsDocRef);
+  
+  // Fetch all products
   const productsQuery = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
-  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+  const { data: allProducts, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
+  // Determine featured products
+  const featuredProducts = useMemo(() => {
+    if (!settings || !settings.featuredProductIds || !allProducts) {
+      // Fallback to first 8 products if no settings
+      return allProducts?.slice(0, 8);
+    }
+    return allProducts.filter(p => settings.featuredProductIds.includes(p.id));
+  }, [settings, allProducts]);
 
   useEffect(() => {
     if (user) {
@@ -33,27 +47,37 @@ export default function Home() {
     }
   }, [user]);
 
+  const defaultHero = {
+    title: "BeautifulSoup & Food",
+    subtitle: "Fresh ingredients, unforgettable meals. Explore our shop or create a custom order.",
+    imageUrl: placeholderImages.find(p => p.id === 'hero-1')?.imageUrl
+  }
+
+  const heroTitle = settings?.heroTitle || defaultHero.title;
+  const heroSubtitle = settings?.heroSubtitle || defaultHero.subtitle;
+  const heroImageUrl = settings?.heroImageUrl || defaultHero.imageUrl;
+
   return (
     <div className="flex flex-col min-h-screen">
       <main className="flex-1">
         <section className="relative w-full h-[60vh] md:h-[80vh] bg-primary/10">
-          {heroImage && (
+          {isLoadingSettings && <Skeleton className="absolute inset-0" />}
+          {heroImageUrl && (
              <Image
-                src={heroImage.imageUrl}
-                alt={heroImage.description}
+                src={heroImageUrl}
+                alt="Hero image"
                 fill
                 className="object-cover"
-                data-ai-hint={heroImage.imageHint}
                 priority
               />
           )}
           <div className="absolute inset-0 bg-black/30" />
           <div className="relative container mx-auto px-4 md:px-6 h-full flex flex-col items-center justify-center text-center text-primary-foreground">
             <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl/none font-headline animate-fade-in-down">
-              BeautifulSoup & Food
+              {heroTitle}
             </h1>
             <p className="mt-4 max-w-[700px] text-lg md:text-xl animate-fade-in-up">
-              Fresh ingredients, unforgettable meals. Explore our shop or create a custom order.
+              {heroSubtitle}
             </p>
             <div className="mt-6 flex flex-col gap-4 sm:flex-row animate-fade-in-up">
               <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
@@ -110,7 +134,7 @@ export default function Home() {
         <section id="shop" className="w-full py-12 md:py-24 lg:py-32 bg-secondary/30">
           <div className="container mx-auto px-4 md:px-6">
             <h2 className="text-3xl font-bold tracking-tighter text-center sm:text-4xl md:text-5xl font-headline mb-12">
-              Our Products
+              Featured Products
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
               {areProductsLoading && [...Array(8)].map((_, i) => (
@@ -129,7 +153,7 @@ export default function Home() {
                   </CardFooter>
                 </Card>
               ))}
-              {products && products.map((product) => (
+              {featuredProducts && featuredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
@@ -140,3 +164,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
