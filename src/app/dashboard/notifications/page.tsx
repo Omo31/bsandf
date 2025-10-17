@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useUser, useCollection, useFirestore } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, updateDoc, orderBy, query } from 'firebase/firestore';
 import {
   Card,
@@ -56,7 +56,7 @@ export default function NotificationsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const notificationsQuery = useMemo(() => {
+  const notificationsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'));
   }, [user, firestore]);
