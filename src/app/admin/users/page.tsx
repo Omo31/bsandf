@@ -65,7 +65,9 @@ function UserActions({ user: targetUser }: { user: WithId<User> }) {
         await setDoc(adminRoleRef, { uid: targetUser.uid }); // Add any relevant data
         toast({ title: 'Admin Granted', description: `${targetUser.firstName} is now an admin.` });
       }
-      setIsAdmin(!isAdmin); // Optimistically update UI
+      // Note: A full implementation would wait for the cloud function to update the user's `role` field.
+      // For optimistic UI, we can toggle it here.
+      setIsAdmin(!isAdmin);
     } catch (error) {
       console.error('Error toggling admin status:', error);
       toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not change admin status.' });
@@ -139,27 +141,42 @@ export default function UserManagementPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
+  // This effect handles security. It checks for admin claims and redirects if necessary.
   useEffect(() => {
-    if (!isUserLoading && currentUser) {
-      currentUser.getIdTokenResult().then((idTokenResult) => {
-        const isAdminClaim = !!idTokenResult.claims.admin;
-        setIsAdmin(isAdminClaim);
-        if (!isAdminClaim) {
-          router.push('/dashboard');
-        }
-      });
-    } else if (!isUserLoading && !currentUser) {
-      router.push('/login');
+    if (isUserLoading) return; // Wait until user status is resolved
+
+    if (!currentUser) {
+      router.push('/login'); // Not logged in, redirect to login
+      return;
     }
+
+    currentUser.getIdTokenResult().then((idTokenResult) => {
+      const isAdminClaim = !!idTokenResult.claims.admin;
+      setIsAdmin(isAdminClaim);
+      if (!isAdminClaim) {
+        router.push('/dashboard'); // Not an admin, redirect to user dashboard
+      }
+    });
   }, [currentUser, isUserLoading, router]);
 
+  // The query is now memoized and will be null until isAdmin is true.
   const usersQuery = useMemoFirebase(
     () => (firestore && isAdmin ? collection(firestore, 'users') : null),
     [firestore, isAdmin]
   );
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
 
-  const isLoading = isUserLoading || isLoadingUsers || !isAdmin;
+  // Show loading state until we know if the user is an admin.
+  const isLoading = isUserLoading || !isAdmin || isLoadingUsers;
+
+  if (!isAdmin) {
+    // Render a loading state or null while redirecting to avoid flashing content
+    return (
+       <div className="flex-1 space-y-4 pt-6 flex items-center justify-center">
+          <p className="text-muted-foreground">Verifying permissions...</p>
+       </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-4 pt-6">
@@ -216,7 +233,7 @@ export default function UserManagementPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarImage src={`https://picsum.photos/seed/${user.id}/40/40`} />
+                          <AvatarImage src={`https://picsum.photos/seed/${user.uid}/40/40`} />
                           <AvatarFallback>
                             {user.firstName?.charAt(0)}
                             {user.lastName?.charAt(0)}
