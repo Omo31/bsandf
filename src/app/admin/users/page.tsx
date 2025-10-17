@@ -43,7 +43,7 @@ import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import type { User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 function UserActions({ user: targetUser }: { user: WithId<User> }) {
@@ -169,7 +169,7 @@ export default function UserManagementPage() {
   // Show loading state until we know if the user is an admin.
   const isLoading = isUserLoading || !isAdmin || isLoadingUsers;
 
-  if (!isAdmin) {
+  if (!isAdmin && !isUserLoading) {
     // Render a loading state or null while redirecting to avoid flashing content
     return (
        <div className="flex-1 space-y-4 pt-6 flex items-center justify-center">
