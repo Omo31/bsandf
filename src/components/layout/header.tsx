@@ -46,7 +46,9 @@ export default function Header() {
   useEffect(() => {
     setIsClient(true);
     if (user) {
-      user.getIdTokenResult().then(idTokenResult => {
+      // Use getIdTokenResult to check for custom claims.
+      // Passing `true` forces a refresh if the token is old.
+      user.getIdTokenResult(true).then(idTokenResult => {
         setIsAdmin(!!idTokenResult.claims.admin);
       });
     } else {
