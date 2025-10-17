@@ -15,15 +15,30 @@ export type User = {
   email: string;
   role: 'admin' | 'user';
   lastSeen: string;
+  firstName?: string;
+  lastName?: string;
+  shippingAddress?: string;
+  phoneNumber?: string;
 };
 
 export type Order = {
   id: string;
   userId: string;
-  date: string;
-  total: number;
-  status: 'Accepted' | 'Canceled' | 'Draft' | 'Processing' | 'Shipped';
+  orderDate: string;
+  totalAmount: number;
+  status:
+    | 'Pending Admin Review'
+    | 'Pending User Approval'
+    | 'Accepted'
+    | 'Rejected'
+    | 'Canceled'
+    | 'Processing'
+    | 'Shipped';
   items: CartItem[];
+  shippingAddress: string;
+  subTotal: number;
+  serviceCharge?: number;
+  shippingFee?: number;
 };
 
 export type CartItem = {
