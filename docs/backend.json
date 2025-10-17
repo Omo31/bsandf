@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -265,6 +266,44 @@
         "expectationField",
         "isCompleted"
       ]
+    },
+    "Notification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Notification",
+      "type": "object",
+      "description": "Represents a notification for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the notification."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user this notification is for."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the notification."
+        },
+        "message": {
+          "type": "string",
+          "description": "The content of the notification."
+        },
+        "link": {
+          "type": "string",
+          "description": "A URL to navigate to when the notification is clicked."
+        },
+        "isRead": {
+          "type": "boolean",
+          "description": "Whether the user has read the notification."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "When the notification was created.",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "title", "message", "isRead", "timestamp"]
     }
   },
   "auth": {
@@ -418,8 +457,28 @@
             }
           ]
         }
+      },
+      {
+        "path": "/users/{userId}/notifications/{notificationId}",
+        "definition": {
+          "entityName": "Notification",
+          "schema": {
+            "$ref": "#/backend/entities/Notification"
+          },
+          "description": "Stores notifications for individual users.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "notificationId",
+              "description": "The unique identifier for the notification."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features, focusing on security, scalability, and debuggability, especially regarding authorization independence and query performance. User data, products, orders, cart items, chat messages, flyers, and service checklist items are organized into collections that align with access patterns and business requirements.\n\n1.  **Authorization Independence:** User-specific data (cart items, orders) is stored under `/users/{userId}` to leverage path-based authorization. For collaborative data like chat messages (between users and admins), a dedicated collection `/chat_messages` is used, and each document includes both `senderId` and `receiverId` for direct access control, avoiding the need for `get()` calls in security rules.  The `ServiceChecklistItem` includes the `orderId`.\n\n2.  **Structural Segregation:** Different data types with distinct access requirements are stored in separate collections.  User profiles are kept in `/users/{userId}`, while products are in `/products`.  This separation simplifies security rules by ensuring that all documents within a collection share the same access control logic.\n\n3.  **Access Modeling:** Path-based ownership is used extensively for user-owned data. For example, orders are stored under `/users/{userId}/orders/{orderId}`, ensuring that only the user and admins can access specific order information. The admin roles are stored in `/roles_admin/{uid}`. This existence-based check allows simple, efficient authorization. The Membership Map is not used in this implementation.\n\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations by segregating data based on access levels and using path-based authorization.  For example, listing orders under `/users/{userId}/orders` is secure because the path inherently restricts access to the user's own orders. The global flyers are stored in `/flyers` which will support a public list, and can be updated by admins only.\n\nThis design ensures that security rules can be written clearly and efficiently without relying on complex data hierarchies or server-side filtering, promoting a more secure and scalable application."
+    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features, focusing on security, scalability, and debuggability, especially regarding authorization independence and query performance. User data, products, orders, cart items, chat messages, flyers, and service checklist items are organized into collections that align with access patterns and business requirements.\n\n1.  **Authorization Independence:** User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization. For collaborative data like chat messages (between users and admins), a dedicated collection `/chat_messages` is used, and each document includes both `senderId` and `receiverId` for direct access control, avoiding the need for `get()` calls in security rules.  The `ServiceChecklistItem` includes the `orderId`.\n\n2.  **Structural Segregation:** Different data types with distinct access requirements are stored in separate collections.  User profiles are kept in `/users/{userId}`, while products are in `/products`.  This separation simplifies security rules by ensuring that all documents within a collection share the same access control logic.\n\n3.  **Access Modeling:** Path-based ownership is used extensively for user-owned data. For example, orders are stored under `/users/{userId}/orders/{orderId}`, ensuring that only the user and admins can access specific order information. The admin roles are stored in `/roles_admin/{uid}`. This existence-based check allows simple, efficient authorization. The Membership Map is not used in this implementation.\n\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations by segregating data based on access levels and using path-based authorization.  For example, listing orders under `/users/{userId}/orders` is secure because the path inherently restricts access to the user's own orders. The global flyers are stored in `/flyers` which will support a public list, and can be updated by admins only.\n\nThis design ensures that security rules can be written clearly and efficiently without relying on complex data hierarchies or server-side filtering, promoting a more secure and scalable application."
   }
 }

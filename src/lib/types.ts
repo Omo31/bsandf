@@ -41,3 +41,13 @@ export type CustomService = {
     label: string;
     description: string;
 }
+
+export type Notification = {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  link: string;
+  isRead: boolean;
+  timestamp: string;
+};
