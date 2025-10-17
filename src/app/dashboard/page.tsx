@@ -1,3 +1,6 @@
+
+'use client';
+
 import {
   Card,
   CardContent,
@@ -11,20 +14,51 @@ import {
   Heart,
   Truck
 } from 'lucide-react';
-import { orders, users } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import type { Order, WithId } from '@/lib/types';
+import { useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const getStatusVariant = (status: Order['status']) => {
+  switch (status) {
+    case 'Accepted':
+    case 'Shipped':
+      return 'default';
+    case 'Pending Admin Review':
+      return 'secondary';
+    case 'Pending User Approval':
+      return 'outline';
+    case 'Rejected':
+    case 'Canceled':
+      return 'destructive';
+    default:
+      return 'secondary';
+  }
+};
 
 export default function UserDashboardPage() {
-    const user = users[1]; // Mock user
-    const userOrders = orders.filter(o => o.userId === user.id);
-    const recentOrder = userOrders[0];
+    const { user, isUserLoading } = useUser();
+    const firestore = useFirestore();
+
+    const ordersQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, `users/${user.uid}/orders`), orderBy('orderDate', 'desc'));
+    }, [user, firestore]);
+    
+    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+    const recentOrder = useMemo(() => orders?.[0], [orders]);
+
+    const isLoading = isUserLoading || areOrdersLoading;
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Welcome, {user.name}!</h2>
+       {isLoading ? <Skeleton className="h-9 w-1/3" /> : <h2 className="text-3xl font-bold tracking-tight">Welcome, {user?.displayName?.split(' ')[0] || 'User'}!</h2>}
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
@@ -33,7 +67,7 @@ export default function UserDashboardPage() {
             <ListOrdered className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{userOrders.length}</div>
+            {isLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{orders?.length || 0}</div>}
             <p className="text-xs text-muted-foreground">Across all time</p>
           </CardContent>
         </Card>
@@ -43,8 +77,8 @@ export default function UserDashboardPage() {
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
-            <p className="text-xs text-muted-foreground">Ready to be purchased</p>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">Your saved items (coming soon)</p>
           </CardContent>
         </Card>
         <Card>
@@ -62,38 +96,40 @@ export default function UserDashboardPage() {
         <Card className="col-span-4">
           <CardHeader>
             <CardTitle>Recent Order</CardTitle>
-            <CardDescription>Tracking for order <span className="font-semibold">{recentOrder.id}</span></CardDescription>
+            {isLoading ? <Skeleton className="h-4 w-2/3" /> :
+             recentOrder && <CardDescription>Tracking for order <span className="font-semibold">#{recentOrder.id.substring(0,8)}...</span></CardDescription>
+            }
           </CardHeader>
           <CardContent>
-            {recentOrder ? (
+            {isLoading ? <Skeleton className="h-40 w-full" /> : recentOrder ? (
                 <div>
                      <div className="flex justify-between items-center mb-4">
                         <div>
-                            <div className="font-semibold">Status: <Badge>{recentOrder.status}</Badge></div>
-                            <p className="text-sm text-muted-foreground">Date: {new Date(recentOrder.date).toLocaleDateString()}</p>
+                            <div className="font-semibold">Status: <Badge variant={getStatusVariant(recentOrder.status)}>{recentOrder.status}</Badge></div>
+                            <p className="text-sm text-muted-foreground">Date: {new Date(recentOrder.orderDate).toLocaleDateString()}</p>
                         </div>
-                        <p className="text-xl font-bold">₦{recentOrder.total.toFixed(2)}</p>
+                         {recentOrder.totalAmount > 0 && <p className="text-xl font-bold">₦{recentOrder.totalAmount.toFixed(2)}</p>}
                      </div>
                      <ul className="space-y-2">
-                        {recentOrder.items.map(item => (
-                            <li key={item.productId} className="flex justify-between items-center text-sm">
+                        {recentOrder.items.map((item, index) => (
+                            <li key={item.productId + index} className="flex justify-between items-center text-sm">
                                 <span>{item.name} (x{item.quantity})</span>
-                                <span>₦{(item.price * item.quantity).toFixed(2)}</span>
+                                {item.price > 0 && <span>₦{(item.price * item.quantity).toFixed(2)}</span>}
                             </li>
                         ))}
                      </ul>
                      <Button asChild variant="outline" className="mt-4 w-full">
-                        <Link href={`/dashboard/history`}>View Order Details</Link>
+                        <Link href={`/dashboard/history`}>View All Orders</Link>
                      </Button>
                 </div>
             ) : (
-                <p>No recent orders.</p>
+                <div className="text-center p-8 text-muted-foreground">No recent orders found.</div>
             )}
           </CardContent>
         </Card>
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>My Preferences</CardTitle>
+            <CardTitle>My Profile</CardTitle>
             <CardDescription>
               Your saved preferences for a faster checkout.
             </CardDescription>
@@ -102,23 +138,23 @@ export default function UserDashboardPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <p className="font-medium">Primary Address</p>
-                    <p className="text-sm text-muted-foreground">123 User Street, Yourtown</p>
+                    <p className="text-sm text-muted-foreground">{user ? 'View in profile' : '...'}</p>
                 </div>
-                <Button variant="ghost" size="sm">Edit</Button>
+                <Button variant="ghost" size="sm" asChild><Link href="/dashboard/profile">Edit</Link></Button>
             </div>
              <div className="flex items-center justify-between">
                 <div>
                     <p className="font-medium">Payment Method</p>
-                    <p className="text-sm text-muted-foreground">Visa ending in 1234</p>
+                    <p className="text-sm text-muted-foreground">Coming Soon</p>
                 </div>
-                <Button variant="ghost" size="sm">Edit</Button>
+                <Button variant="ghost" size="sm" disabled>Edit</Button>
             </div>
              <div className="flex items-center justify-between">
                 <div>
                     <p className="font-medium">Dietary Notes</p>
-                    <p className="text-sm text-muted-foreground">No nuts, gluten-free preference</p>
+                    <p className="text-sm text-muted-foreground">Set your preferences</p>
                 </div>
-                <Button variant="ghost" size="sm">Edit</Button>
+                 <Button variant="ghost" size="sm" disabled>Edit</Button>
             </div>
           </CardContent>
         </Card>
