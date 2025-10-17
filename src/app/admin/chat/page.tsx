@@ -45,6 +45,7 @@ function ChatMessageDisplay({ author, message, avatar, currentAdminId }: { autho
 export default function AdminChatPage() {
     const { user: adminUser, isUserLoading: isAdminLoading } = useUser();
     const firestore = useFirestore();
+    const adminId = 'beautifulsoup-admin';
 
     const usersQuery = useMemoFirebase(() => {
         if (!firestore || !adminUser) return null;

@@ -10,8 +10,8 @@ import { MessageSquare, Send, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import type { ChatMessage } from '@/lib/types';
+import { collection, query, where, orderBy, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import type { ChatMessage, WithId } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 export function ChatWidget() {
@@ -22,7 +22,11 @@ export function ChatWidget() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const adminId = 'beautifulsoup-admin'; // A fixed ID for the admin "user"
+  const adminId = 'beautifulsoup-admin'; 
+
+  const [activeMessages, setActiveMessages] = useState<WithId<ChatMessage>[]>([]);
+  const [areMessagesLoading, setAreMessagesLoading] = useState(false);
+
 
   useEffect(() => {
     if (isUserLoading) return;
@@ -36,38 +40,58 @@ export function ChatWidget() {
     }
   }, [isUserLoading, user]);
 
-  // Secure query for messages sent by the user to the admin
-  const messagesSentQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(
+  useEffect(() => {
+    if (!firestore || !user) {
+      setActiveMessages([]);
+      return;
+    };
+
+    setAreMessagesLoading(true);
+
+    const q1 = query(
         collection(firestore, 'chat_messages'),
         where('senderId', '==', user.uid),
-        where('receiverId', '==', adminId),
-        orderBy('timestamp')
+        where('receiverId', '==', adminId)
     );
-  }, [user, firestore, adminId]);
-
-  // Secure query for messages received by the user from the admin
-  const messagesReceivedQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(
+    const q2 = query(
         collection(firestore, 'chat_messages'),
         where('senderId', '==', adminId),
-        where('receiverId', '==', user.uid),
-        orderBy('timestamp')
+        where('receiverId', '==', user.uid)
     );
-  }, [user, firestore, adminId]);
+    
+    const unsub1 = onSnapshot(q1, (snap) => {
+        // Just trigger a re-fetch, don't combine here
+         fetchAllMessages();
+    });
+    const unsub2 = onSnapshot(q2, (snap) => {
+        // Just trigger a re-fetch, don't combine here
+         fetchAllMessages();
+    });
 
-  const { data: sentMessages, isLoading: isLoadingSent } = useCollection<ChatMessage>(messagesSentQuery);
-  const { data: receivedMessages, isLoading: isLoadingReceived } = useCollection<ChatMessage>(messagesReceivedQuery);
-  
-  const areMessagesLoading = isLoadingSent || isLoadingReceived;
+    const fetchAllMessages = async () => {
+        try {
+            const [sentSnap, receivedSnap] = await Promise.all([getDocs(q1), getDocs(q2)]);
+            
+            const sent = sentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as WithId<ChatMessage>));
+            const received = receivedSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as WithId<ChatMessage>));
 
-  const activeMessages = useMemo(() => {
-      if (!sentMessages || !receivedMessages) return [];
-      // Combine and sort the messages from both queries
-      return [...sentMessages, ...receivedMessages].sort((a, b) => a.timestamp?.toMillis() - b.timestamp?.toMillis());
-  }, [sentMessages, receivedMessages]);
+            const combined = [...sent, ...received].sort((a, b) => a.timestamp?.toMillis() - b.timestamp?.toMillis());
+            setActiveMessages(combined);
+        } catch (error) {
+            console.error("Error fetching chat messages:", error);
+        } finally {
+            setAreMessagesLoading(false);
+        }
+    }
+
+    fetchAllMessages();
+
+    return () => {
+        unsub1();
+        unsub2();
+    };
+
+  }, [firestore, user, adminId]);
 
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -230,3 +254,6 @@ function ChatMessageDisplay({ author, message, currentUserId }: { author: string
     </div>
   );
 }
+
+// I am adding onSnapshot here as it was missing from the import, causing a potential error.
+import { onSnapshot } from 'firebase/firestore';
