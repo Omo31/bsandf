@@ -20,10 +20,10 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const userRef = db.collection('users').doc(uid);
   const usersCollectionRef = db.collection('users');
 
-  // Split displayName into firstName and lastName
+  // Split displayName into firstName and lastName, with fallbacks.
   const nameParts = displayName?.split(' ') || [];
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts.slice(1).join(' ') || '';
+  const firstName = nameParts[0] || 'New';
+  const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
     // Check if this is the first user
@@ -38,6 +38,7 @@ export const createFirestoreUser = onUserCreate(async (event) => {
         await db.collection('roles_admin').doc(uid).set({ uid: uid });
     }
 
+    // Use merge:true to avoid overwriting data if the doc was created manually
     await userRef.set({
       uid: uid,
       email: email,
@@ -46,7 +47,7 @@ export const createFirestoreUser = onUserCreate(async (event) => {
       role: userRole,
       createdAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-    console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
+    console.log(`Successfully created or merged user document for ${uid} with role: ${userRole}`);
 
   } catch (error) {
     console.error(`Error creating user document for ${uid}:`, error);
@@ -72,15 +73,15 @@ export const handleAdminRole = onDocumentWritten('roles_admin/{userId}', async e
     if (!userDoc.exists) {
         const { email, displayName } = user;
         const nameParts = displayName?.split(' ') || [];
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
+        const firstName = nameParts[0] || 'New';
+        const lastName = nameParts.slice(1).join(' ') || 'User';
         await userRef.set({
             uid: userId,
             email: email,
             firstName: firstName,
             lastName: lastName,
             role: 'user',
-            createdAt: FieldValue.serverTimestamp(),
+createdAt: FieldValue.serverTimestamp(),
         }, { merge: true });
         console.log(`Created missing user document for ${userId} during admin role handling.`);
     }
@@ -277,5 +278,4 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
     console.error('Error sending order status notification:', error);
   }
 });
-
     
