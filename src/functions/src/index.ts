@@ -24,13 +24,12 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
-    // Determine user role.
+    // Determine user role by checking if any other users exist in Firebase Auth
     let userRole = 'user';
-    const usersCollectionRef = db.collection('users');
-    const userCountSnapshot = await usersCollectionRef.limit(2).get();
+    const listUsersResult = await admin.auth().listUsers(2); // Check for at most 2 users
 
-    // If there are no existing user documents, this is the first user.
-    if (userCountSnapshot.empty) {
+    // If there is only one user (the one being created), they are the first user.
+    if (listUsersResult.users.length <= 1) {
       userRole = 'owner';
       console.log(`First user detected. Granting 'owner' role via custom claim to ${uid}.`);
       await admin.auth().setCustomUserClaims(uid, { role: 'owner' });

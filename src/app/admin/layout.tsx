@@ -39,18 +39,20 @@ function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Wait until both user loading and admin check are complete
     if (isUserLoading || isCheckingAdmin) {
-      return;
+      return; // Still checking, do nothing
     }
-    if (!user) {
-      router.push('/login');
-    } else if (!isAdmin) {
+
+    // If checks are done, and there's no user or the user is not an admin, redirect
+    if (!user || !isAdmin) {
       router.push('/dashboard');
     }
   }, [user, isUserLoading, isAdmin, isCheckingAdmin, router]);
 
 
-  if (isCheckingAdmin || isUserLoading || !isAdmin) {
+  // While checks are running, show a loading state
+  if (isUserLoading || isCheckingAdmin) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -59,7 +61,18 @@ function AdminAuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  // If checks are done and user is an admin, render the children
+  if (isAdmin) {
+    return <>{children}</>;
+  }
+  
+  // As a fallback (e.g., during redirect), show the loading state
+  return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="ml-2">Redirecting...</p>
+      </div>
+  );
 }
 
 
