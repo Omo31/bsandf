@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { ProductCard } from '@/components/shop/product-card';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { ArrowRight } from 'lucide-react';
