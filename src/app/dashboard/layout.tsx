@@ -2,98 +2,59 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarProvider,
-  SidebarInset,
-  SidebarTrigger,
-  SidebarFooter,
-  SidebarSeparator
-} from '@/components/ui/sidebar';
-import { Logo } from '@/components/icons';
-import {
-  LayoutGrid,
-  ListOrdered,
-  Heart,
-  User,
-  LogOut,
-  Home
-} from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/icons';
 
-const menuItems = [
-  { href: '/dashboard', label: 'Summary', icon: LayoutGrid },
-  { href: '/dashboard/history', label: 'Purchase History', icon: ListOrdered },
-  { href: '/dashboard/wishlist', label: 'Wishlist', icon: Heart },
-  { href: '/dashboard/profile', label: 'Profile', icon: User },
+const navLinks = [
+  { href: '/dashboard', label: 'Summary' },
+  { href: '/dashboard/profile', label: 'Profile' },
+  { href: '/dashboard/history', label: 'Purchase History' },
+  { href: '/dashboard/notifications', label: 'Notification Management' },
+  { href: '/dashboard/wishlist', label: 'Wishlist' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  // Find the closest matching link for the current path
+  const getActiveTab = () => {
+    if (pathname === '/dashboard') return '/dashboard';
+    const matchingLink = navLinks.find(link => pathname.startsWith(link.href) && link.href !== '/dashboard');
+    return matchingLink ? matchingLink.href : '/dashboard';
+  }
+
   return (
-    <SidebarProvider>
-      <Sidebar>
-        <SidebarHeader className="p-4">
-           <div className="flex items-center gap-2" data-collapsible="true">
-                <Logo className="w-7 h-7 text-primary" />
-                <span className="text-lg font-semibold">BeautifulSoup</span>
-            </div>
-        </SidebarHeader>
-        <SidebarContent className="p-4">
-          <SidebarMenu>
-            {menuItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
-                  <SidebarMenuButton
-                    isActive={pathname === item.href}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarContent>
-        <SidebarFooter className="p-4">
-            <SidebarSeparator />
-            <div className="flex items-center gap-3 mt-4" data-collapsible="true">
-                <Avatar>
-                    <AvatarImage src="https://picsum.photos/seed/user-avatar/40/40" />
-                    <AvatarFallback>U</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                    <p className="text-sm font-semibold">User Name</p>
-                    <p className="text-xs text-muted-foreground">user@bsfood.com</p>
-                </div>
-                <Button variant="ghost" size="icon">
-                    <LogOut className="h-4 w-4"/>
-                </Button>
-            </div>
-        </SidebarFooter>
-      </Sidebar>
-      <SidebarInset>
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
-            <SidebarTrigger />
+    <div className="flex flex-col min-h-screen">
+      <header className="sticky top-0 z-40 w-full border-b bg-background">
+        <div className="container flex h-16 items-center space-x-4 sm:justify-between sm:space-x-0">
+          <div className="flex gap-2 md:gap-4 items-center">
+            <Logo className="w-7 h-7 text-primary" />
             <h1 className="text-lg font-semibold">My Dashboard</h1>
-             <div className="flex-1" />
+          </div>
+          <div className="flex flex-1 items-center justify-end space-x-4">
             <Button asChild variant="outline">
-                <Link href="/">
-                    <Home className="h-4 w-4 mr-2" />
-                    Back to Store
-                </Link>
+              <Link href="/">
+                <Home className="h-4 w-4 mr-2" />
+                View Store
+              </Link>
             </Button>
-        </header>
-        {children}
-      </SidebarInset>
-    </SidebarProvider>
+          </div>
+        </div>
+      </header>
+      <div className="container flex-1 mt-6">
+        <Tabs value={getActiveTab()} className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            {navLinks.map((link) => (
+              <TabsTrigger key={link.href} value={link.href} asChild>
+                <Link href={link.href}>{link.label}</Link>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <div className="mt-6">{children}</div>
+      </div>
+    </div>
   );
 }
