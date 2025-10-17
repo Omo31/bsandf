@@ -58,13 +58,10 @@ export default function AdminDashboardPage() {
     }
     currentUser.getIdTokenResult().then((idTokenResult) => {
       const isAdminClaim = !!idTokenResult.claims.admin;
-      if (isAdminClaim) {
-        setIsAdmin(true);
-      } else {
-        // If not an admin, redirect to the user dashboard
+      if (!isAdminClaim) {
         router.push('/dashboard');
-        setIsAdmin(false);
       }
+      setIsAdmin(isAdminClaim);
     });
   }, [currentUser, isUserLoading, router]);
 
@@ -150,7 +147,7 @@ export default function AdminDashboardPage() {
       )
   }
 
-  // If isAdmin is false, the redirect is already in progress, render nothing or a message.
+  // If isAdmin is false, the redirect is already in progress, render a message.
   if (!isAdmin) {
       return (
           <div className="flex-1 space-y-4 pt-6 text-center">

@@ -50,16 +50,16 @@ import { useRouter } from 'next/navigation';
 function UserActions({ user: targetUser }: { user: WithId<User> }) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminRole, setIsAdminRole] = useState(false);
 
   useEffect(() => {
-    setIsAdmin(targetUser.role === 'admin');
+    setIsAdminRole(targetUser.role === 'admin');
   }, [targetUser.role]);
 
   const handleToggleAdmin = async () => {
     const adminRoleRef = doc(firestore, 'roles_admin', targetUser.uid);
     try {
-      if (isAdmin) {
+      if (isAdminRole) {
         await deleteDoc(adminRoleRef);
         toast({ title: 'Admin Revoked', description: `${targetUser.firstName} is no longer an admin.` });
       } else {
@@ -68,7 +68,7 @@ function UserActions({ user: targetUser }: { user: WithId<User> }) {
       }
       // Note: A full implementation would wait for the cloud function to update the user's `role` field.
       // For optimistic UI, we can toggle it here.
-      setIsAdmin(!isAdmin);
+      setIsAdminRole(!isAdminRole);
     } catch (error) {
       console.error('Error toggling admin status:', error);
       toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not change admin status.' });
@@ -97,12 +97,12 @@ function UserActions({ user: targetUser }: { user: WithId<User> }) {
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuItem>View Order History</DropdownMenuItem>
         <DropdownMenuItem onClick={handleToggleAdmin}>
-          {isAdmin ? (
+          {isAdminRole ? (
             <UserMinus className="mr-2 h-4 w-4" />
           ) : (
             <UserPlus className="mr-2 h-4 w-4" />
           )}
-          {isAdmin ? 'Revoke Admin' : 'Make Admin'}
+          {isAdminRole ? 'Revoke Admin' : 'Make Admin'}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <AlertDialog>
@@ -154,13 +154,10 @@ export default function UserManagementPage() {
 
     currentUser.getIdTokenResult().then((idTokenResult) => {
       const isAdminClaim = !!idTokenResult.claims.admin;
-      if (isAdminClaim) {
-        setIsAdmin(true);
-      } else {
-        // If not an admin, redirect to the user dashboard
+       if (!isAdminClaim) {
         router.push('/dashboard');
-        setIsAdmin(false);
       }
+      setIsAdmin(isAdminClaim);
     });
   }, [currentUser, isUserLoading, router]);
 
