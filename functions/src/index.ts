@@ -11,12 +11,14 @@ const db = admin.firestore();
 
 /**
  * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
+ * It also grants admin role to the first user.
  */
 export const createFirestoreUser = onUserCreate(async (event) => {
   const user = event.data;
   const { uid, email, displayName } = user;
 
   const userRef = db.collection('users').doc(uid);
+  const usersCollectionRef = db.collection('users');
 
   // Split displayName into firstName and lastName
   const nameParts = displayName?.split(' ') || [];
@@ -24,15 +26,28 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const lastName = nameParts.slice(1).join(' ') || '';
 
   try {
+    // Check if this is the first user
+    const userCountSnapshot = await usersCollectionRef.limit(2).get();
+    const isFirstUser = userCountSnapshot.size <= 1;
+
+    let userRole = 'user';
+    if (isFirstUser) {
+        userRole = 'admin';
+        console.log(`First user detected. Granting admin role to ${uid}.`);
+        // Grant admin role by creating a document in roles_admin
+        await db.collection('roles_admin').doc(uid).set({ uid: uid });
+    }
+
     await userRef.set({
       uid: uid,
       email: email,
       firstName: firstName,
       lastName: lastName,
-      role: 'user', // Default role
+      role: userRole,
       createdAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-    console.log(`Successfully created user document for ${uid}`);
+    console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
+
   } catch (error) {
     console.error(`Error creating user document for ${uid}:`, error);
   }
@@ -75,6 +90,7 @@ export const handleAdminRole = onDocumentWritten('roles_admin/{userId}', async e
       if (currentCustomClaims.admin !== true) {
         console.log(`Granting admin role to user: ${userId}`);
         await admin.auth().setCustomUserClaims(userId, { ...currentCustomClaims, admin: true });
+        await userRef.update({ role: 'admin' });
       }
     } else {
       // If document is deleted, revoke admin role.
@@ -82,6 +98,7 @@ export const handleAdminRole = onDocumentWritten('roles_admin/{userId}', async e
         console.log(`Revoking admin role for user: ${userId}`);
         const { admin, ...otherClaims } = currentCustomClaims;
         await admin.auth().setCustomUserClaims(userId, otherClaims);
+        await userRef.update({ role: 'user' });
       }
     }
   } catch (error) {
@@ -260,3 +277,5 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
     console.error('Error sending order status notification:', error);
   }
 });
+
+    
