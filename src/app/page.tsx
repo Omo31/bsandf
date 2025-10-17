@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProductCard } from '@/components/shop/product-card';
-import { products, recommendedProducts } from '@/lib/data';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { ArrowRight } from 'lucide-react';
-import { useUser } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import type { Product, WithId } from '@/lib/types';
+import { collection } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState }from 'react';
 
 export default function Home() {
@@ -16,6 +18,10 @@ export default function Home() {
   const heroImage = placeholderImages.find(p => p.id === 'hero-1');
   const { user, isUserLoading } = useUser();
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const firestore = useFirestore();
+  const productsQuery = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
+  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
   useEffect(() => {
     if (user) {
@@ -107,25 +113,29 @@ export default function Home() {
               Our Products
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-              {products.map((product) => (
+              {areProductsLoading && [...Array(8)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-0">
+                    <Skeleton className="w-full aspect-[4/3]" />
+                  </CardContent>
+                  <CardFooter className="p-4 flex-col items-start space-y-2">
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <div className="flex justify-between items-center w-full pt-2">
+                      <Skeleton className="h-8 w-20" />
+                      <Skeleton className="h-8 w-24" />
+                    </div>
+                  </CardFooter>
+                </Card>
+              ))}
+              {products && products.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
           </div>
         </section>
 
-        <section id="recommendations" className="w-full py-12 md:py-24 lg:py-32 bg-background">
-          <div className="container mx-auto px-4 md:px-6">
-            <h2 className="text-3xl font-bold tracking-tighter text-center sm:text-4xl md:text-5xl font-headline mb-12">
-              Recommended For You
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-              {recommendedProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </section>
       </main>
     </div>
   );

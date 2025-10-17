@@ -2,14 +2,14 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { placeholderImages } from '@/lib/placeholder-images';
-import type { Product } from '@/lib/types';
+import type { Product, WithId } from '@/lib/types';
 import { ShoppingCart } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProductCardProps {
-  product: Product;
+  product: WithId<Product>;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
@@ -30,17 +30,35 @@ export function ProductCard({ product }: ProductCardProps) {
 
     try {
       const cartRef = collection(firestore, `users/${user.uid}/cart_items`);
-      await addDoc(cartRef, {
-        userId: user.uid,
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-      });
-      toast({
-        title: 'Added to Cart!',
-        description: `${product.name} has been added to your cart.`,
-      });
+      // Check if the item already exists in the cart
+      const q = query(cartRef, where('productId', '==', product.id));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        // Item exists, update quantity
+        const existingItem = querySnapshot.docs[0];
+        const newQuantity = existingItem.data().quantity + 1;
+        const batch = writeBatch(firestore);
+        batch.update(existingItem.ref, { quantity: newQuantity });
+        await batch.commit();
+        toast({
+          title: 'Item Updated in Cart!',
+          description: `Quantity of ${product.name} is now ${newQuantity}.`,
+        });
+      } else {
+        // Item does not exist, add new document
+        await addDoc(cartRef, {
+          userId: user.uid,
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+        });
+        toast({
+          title: 'Added to Cart!',
+          description: `${product.name} has been added to your cart.`,
+        });
+      }
     } catch (error) {
       console.error("Error adding to cart: ", error);
       toast({
