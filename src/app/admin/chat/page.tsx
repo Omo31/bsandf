@@ -47,50 +47,35 @@ export default function AdminChatPage() {
     const firestore = useFirestore();
 
     const usersQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !adminUser) return null; // Wait for admin user
         return query(collection(firestore, 'users'), where('role', '==', 'user'))
-    }, [firestore]);
+    }, [firestore, adminUser]);
 
     const { data: users, isLoading: areUsersLoading } = useCollection<User>(usersQuery);
 
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
 
-    // Query for messages sent FROM admin TO selected user
-    const messagesToUserQuery = useMemoFirebase(() => {
+    const messagesQuery = useMemoFirebase(() => {
         if (!adminUser || !selectedUserId || !firestore) return null;
         return query(
             collection(firestore, 'chat_messages'),
-            where('senderId', '==', adminUser.uid),
-            where('receiverId', '==', selectedUserId)
+            where('senderId', 'in', [adminUser.uid, selectedUserId]),
+            where('receiverId', 'in', [adminUser.uid, selectedUserId]),
+            orderBy('timestamp')
         );
     }, [adminUser, selectedUserId, firestore]);
 
-    // Query for messages sent FROM selected user TO admin
-    const messagesFromUserQuery = useMemoFirebase(() => {
-        if (!adminUser || !selectedUserId || !firestore) return null;
-        return query(
-            collection(firestore, 'chat_messages'),
-            where('senderId', '==', selectedUserId),
-            where('receiverId', '==', adminUser.uid)
-        );
-    }, [adminUser, selectedUserId, firestore]);
-
-    const { data: messagesToUser, isLoading: isLoadingTo } = useCollection<ChatMessage>(messagesToUserQuery);
-    const { data: messagesFromUser, isLoading: isLoadingFrom } = useCollection<ChatMessage>(messagesFromUserQuery);
-
-    const areMessagesLoading = isLoadingTo || isLoadingFrom;
-
-    // Combine and sort messages
+    const { data: allMessages, isLoading: areMessagesLoading } = useCollection<ChatMessage>(messagesQuery);
+    
+    // Filter messages on the client side
     const activeMessages = useMemo(() => {
-        const allMessages = [...(messagesToUser || []), ...(messagesFromUser || [])];
-        // Ensure timestamps are valid before sorting
-        return allMessages.sort((a, b) => {
-            const timeA = a.timestamp?.seconds || 0;
-            const timeB = b.timestamp?.seconds || 0;
-            return timeA - timeB;
-        });
-    }, [messagesToUser, messagesFromUser]);
+        if (!allMessages || !adminUser || !selectedUserId) return [];
+        return allMessages.filter(msg =>
+            (msg.senderId === adminUser.uid && msg.receiverId === selectedUserId) ||
+            (msg.senderId === selectedUserId && msg.receiverId === adminUser.uid)
+        );
+    }, [allMessages, adminUser, selectedUserId]);
     
     const activeConversationUser = useMemo(() => users?.find(u => u.uid === selectedUserId), [users, selectedUserId]);
 
@@ -122,7 +107,7 @@ export default function AdminChatPage() {
         }
     }, [users, selectedUserId]);
 
-    if (isAdminLoading || areUsersLoading) {
+    if (isAdminLoading) {
       return (
         <div className="flex-1 space-y-4 pt-6">
             <div className="flex items-center justify-between space-y-2">
@@ -175,6 +160,7 @@ export default function AdminChatPage() {
                         </div>
                         <ScrollArea className="flex-1">
                            <div className="p-2">
+                             {areUsersLoading && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto mt-4" />}
                              {users?.map(user => (
                                 <button
                                     key={user.uid}

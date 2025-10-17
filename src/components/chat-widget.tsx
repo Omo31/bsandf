@@ -36,39 +36,26 @@ export function ChatWidget() {
     }
   }, [isUserLoading, user]);
 
-  const sentMessagesQuery = useMemoFirebase(() => {
+  const messagesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
         collection(firestore, 'chat_messages'),
-        where('senderId', '==', user.uid),
-        where('receiverId', '==', adminId)
+        where('senderId', 'in', [user.uid, adminId]),
+        where('receiverId', 'in', [user.uid, adminId]),
+        orderBy('timestamp')
     );
   }, [user, firestore, adminId]);
 
-  const receivedMessagesQuery = useMemoFirebase(() => {
-      if (!user || !firestore) return null;
-      return query(
-          collection(firestore, 'chat_messages'),
-          where('senderId', '==', adminId),
-          where('receiverId', '==', user.uid)
-      );
-  }, [user, firestore, adminId]);
-
-  const { data: sentMessages } = useCollection<ChatMessage>(sentMessagesQuery);
-  const { data: receivedMessages } = useCollection<ChatMessage>(receivedMessagesQuery);
-
+  const { data: allMessages, isLoading: areMessagesLoading } = useCollection<ChatMessage>(messagesQuery);
+  
   const activeMessages = useMemo(() => {
-      if (!sentMessages && !receivedMessages) return [];
-      const allMessages = [...(sentMessages || []), ...(receivedMessages || [])];
-      // Sort messages by timestamp. Make sure timestamp is a comparable value.
-      return allMessages.sort((a, b) => {
-        if (a.timestamp && b.timestamp) {
-            // Assuming timestamp is a Firestore Timestamp object
-            return a.timestamp.seconds - b.timestamp.seconds;
-        }
-        return 0;
-      });
-  }, [sentMessages, receivedMessages]);
+      if (!allMessages || !user) return [];
+      return allMessages.filter(msg => 
+          (msg.senderId === user.uid && msg.receiverId === adminId) ||
+          (msg.senderId === adminId && msg.receiverId === user.uid)
+      );
+  }, [allMessages, user, adminId]);
+
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,6 +167,7 @@ export function ChatWidget() {
                      {user && activeMessages.map((msg) => (
                         <ChatMessageDisplay key={msg.id} author={msg.senderId} message={msg.message} currentUserId={user.uid} />
                      ))}
+                     {areMessagesLoading && <p className="text-xs text-center text-muted-foreground">Loading messages...</p>}
                   </div>
                 </ScrollArea>
               </CardContent>
