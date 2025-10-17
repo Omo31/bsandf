@@ -120,7 +120,7 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
             await updateProfile(user, {
                 displayName: `${firstName} ${lastName}`
             });
-
+            
             // The onUserCreate cloud function will automatically create the Firestore user document.
         }
         
