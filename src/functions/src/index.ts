@@ -2,7 +2,7 @@
 'use server';
 import * as admin from 'firebase-admin';
 import { onDocumentWritten, onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
-import { onUserCreate } from 'firebase-functions/v2/auth';
+import { onUserCreate, beforeUserCreated, UserCreatedEvent } from 'firebase-functions/v2/auth';
 import { UserRecord } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -13,7 +13,7 @@ const db = admin.firestore();
  * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
  * It also grants admin role to the first user.
  */
-export const createFirestoreUser = onUserCreate(async (event) => {
+export const createFirestoreUser = onUserCreate(async (event: UserCreatedEvent) => {
   const user = event.data;
   const { uid, email, displayName } = user;
 
@@ -26,20 +26,18 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
-    // Check if this is the first user
     const userCountSnapshot = await usersCollectionRef.limit(2).get();
     const isFirstUser = userCountSnapshot.size <= 1;
 
     let userRole = 'user';
-    // If this is the first user, make them an admin.
     if (isFirstUser) {
         userRole = 'admin';
         console.log(`First user detected. Granting admin role and custom claim to ${uid}.`);
-        // Set the custom claim immediately.
         await admin.auth().setCustomUserClaims(uid, { admin: true });
     }
-
-    // Create the user document with the correct role.
+    
+    // Create the user document with the correct role and other info.
+    // The displayName is already set on the auth user object client-side.
     await userRef.set({
         uid: uid,
         email: email,
@@ -47,6 +45,11 @@ export const createFirestoreUser = onUserCreate(async (event) => {
         lastName: lastName,
         role: userRole,
         createdAt: FieldValue.serverTimestamp(),
+        // We can't get shipping address or phone number here,
+        // it must be written from the client after signup.
+        // This is fine, as they are optional.
+        shippingAddress: '',
+        phoneNumber: '',
     }, { merge: true });
     
     console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
@@ -228,4 +231,3 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
     console.error('Error sending order status notification:', error);
   }
 });
-    
