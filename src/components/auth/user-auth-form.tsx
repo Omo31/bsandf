@@ -33,7 +33,6 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 
 
 const loginSchema = z.object({
@@ -61,7 +60,6 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
   const router = useRouter();
   const auth = useAuth();
   const { toast } = useToast();
-  const functions = getFunctions();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -125,16 +123,9 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
             const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
             
             // 2. Set their display name in Auth. This is a separate step.
+            // The onUserCreate backend function will use this displayName to populate Firestore.
             await updateProfile(userCredential.user, {
                 displayName: `${values.firstName} ${values.lastName}`
-            });
-
-            // 3. Call the backend function to create the Firestore document
-            const initializeUser = httpsCallable(functions, 'initializeUser');
-            await initializeUser({
-                email: values.email,
-                firstName: values.firstName,
-                lastName: values.lastName,
             });
         }
         
@@ -343,5 +334,4 @@ export function UserAuthForm({ formType }: UserAuthFormProps) {
     </Card>
   );
 }
-
     
