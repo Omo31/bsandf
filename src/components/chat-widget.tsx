@@ -31,8 +31,7 @@ export function ChatWidget() {
     return query(
         collection(firestore, 'chat_messages'),
         where('senderId', '==', user.uid),
-        where('receiverId', '==', adminId),
-        orderBy('timestamp')
+        where('receiverId', '==', adminId)
     );
   }, [user, firestore]);
 
@@ -42,8 +41,7 @@ export function ChatWidget() {
     return query(
         collection(firestore, 'chat_messages'),
         where('senderId', '==', adminId),
-        where('receiverId', '==', user.uid),
-        orderBy('timestamp')
+        where('receiverId', '==', user.uid)
     );
   }, [user, firestore]);
   
@@ -52,9 +50,9 @@ export function ChatWidget() {
   const areMessagesLoading = isLoadingSent || isLoadingReceived;
 
   const activeMessages = useMemo(() => {
-      if (!sentMessages || !receivedMessages) return [];
-      // Combine and sort messages from both queries
-      return [...sentMessages, ...receivedMessages].sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
+      if (!sentMessages && !receivedMessages) return [];
+      const allMessages = [...(sentMessages || []), ...(receivedMessages || [])];
+      return allMessages.sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
   }, [sentMessages, receivedMessages]);
 
 

@@ -62,8 +62,7 @@ export default function AdminChatPage() {
         return query(
             collection(firestore, 'chat_messages'),
             where('senderId', '==', adminUser.uid),
-            where('receiverId', '==', selectedUserId),
-            orderBy('timestamp')
+            where('receiverId', '==', selectedUserId)
         );
     }, [adminUser, selectedUserId, firestore]);
 
@@ -73,8 +72,7 @@ export default function AdminChatPage() {
         return query(
             collection(firestore, 'chat_messages'),
             where('senderId', '==', selectedUserId),
-            where('receiverId', '==', adminUser.uid),
-            orderBy('timestamp')
+            where('receiverId', '==', adminUser.uid)
         );
     }, [adminUser, selectedUserId, firestore]);
     
@@ -84,9 +82,9 @@ export default function AdminChatPage() {
     const areMessagesLoading = isLoadingSent || isLoadingReceived;
 
     const activeMessages = useMemo(() => {
-        if (!sentMessages || !receivedMessages) return [];
-        // Combine and sort messages from both queries
-        return [...sentMessages, ...receivedMessages].sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
+        if (!sentMessages && !receivedMessages) return [];
+        const allMessages = [...(sentMessages || []), ...(receivedMessages || [])];
+        return allMessages.sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
     }, [sentMessages, receivedMessages]);
     
     const activeConversationUser = useMemo(() => users?.find(u => u.uid === selectedUserId), [users, selectedUserId]);
