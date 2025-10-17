@@ -34,7 +34,7 @@ export function ChatWidget() {
         where('receiverId', '==', adminId),
         orderBy('timestamp')
     );
-  }, [user, firestore, adminId]);
+  }, [user, firestore]);
 
   // Secure query for messages received by the user from the admin
   const messagesReceivedQuery = useMemoFirebase(() => {
@@ -45,7 +45,7 @@ export function ChatWidget() {
         where('receiverId', '==', user.uid),
         orderBy('timestamp')
     );
-  }, [user, firestore, adminId]);
+  }, [user, firestore]);
   
   const { data: sentMessages, isLoading: isLoadingSent } = useCollection<ChatMessage>(messagesSentQuery);
   const { data: receivedMessages, isLoading: isLoadingReceived } = useCollection<ChatMessage>(messagesReceivedQuery);
