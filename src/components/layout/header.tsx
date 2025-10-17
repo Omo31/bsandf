@@ -81,7 +81,7 @@ export default function Header() {
             ))}
              {isAuthenticated && isAdmin && (
               <Link href="/admin" className="transition-colors hover:text-foreground/80 text-foreground/60 font-semibold text-primary">
-                Admin
+                Admin Panel
               </Link>
             )}
           </nav>
@@ -116,7 +116,7 @@ export default function Header() {
                       </Link>
                       {isAdmin && (
                         <Link href="/admin" className="text-sm font-medium pl-2" onClick={handleLinkClick}>
-                            Admin
+                            Admin Panel
                         </Link>
                       )}
                        <DropdownMenuSeparator />

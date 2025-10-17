@@ -62,11 +62,11 @@ function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // If checks are done and user is an admin, render the children
-  if (isAdmin) {
+  if (user && isAdmin) {
     return <>{children}</>;
   }
   
-  // As a fallback (e.g., during redirect), show the loading state
+  // As a fallback (e.g., during redirect), show a different loading state
   return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
         <Loader2 className="h-8 w-8 animate-spin" />
