@@ -35,7 +35,7 @@ export type Order = {
     | 'Canceled'
     | 'Processing'
     | 'Shipped';
-  items: CartItem[];
+  items: (CartItem | OrderItem)[];
   shippingAddress: string;
   subTotal: number;
   serviceCharge?: number;
@@ -48,8 +48,17 @@ export type CartItem = {
   name: string;
   price: number;
   quantity: number;
-  userId: string;
+  userId?: string; // Made optional for cart items within an order
 };
+
+export type OrderItem = {
+    productId: string;
+    name: string;
+    description?: string;
+    price: number;
+    quantity: number;
+}
+
 
 export type CustomMeasure = {
     id: string;
