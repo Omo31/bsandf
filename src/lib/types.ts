@@ -78,3 +78,13 @@ export type Notification = {
   isRead: boolean;
   timestamp: string;
 };
+
+export type ChatMessage = {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  message: string;
+  timestamp: any; // Allow for serverTimestamp
+  senderName?: string;
+  receiverName?: string;
+};

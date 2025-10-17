@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -9,21 +9,87 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { MessageSquare, Send, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import type { ChatMessage } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const adminId = 'beautifulsoup-admin'; // A fixed ID for the admin "user"
 
   useEffect(() => {
+    if (isUserLoading) return;
     const firstVisit = !localStorage.getItem('bsf_visited');
-    if (firstVisit) {
+    if (firstVisit && !user) {
       const timer = setTimeout(() => {
         setShowPopup(true);
         localStorage.setItem('bsf_visited', 'true');
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isUserLoading, user]);
+
+  const messagesQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(
+        collection(firestore, 'chat_messages'),
+        where('senderId', 'in', [user.uid, adminId]),
+        where('receiverId', 'in', [user.uid, adminId]),
+        orderBy('timestamp')
+    );
+  }, [user, firestore, adminId]);
+
+  const { data: messages } = useCollection<ChatMessage>(messagesQuery);
+
+  const activeMessages = useMemo(() => {
+      if (!messages || !user) return [];
+      return messages.filter(msg =>
+          (msg.senderId === user.uid && msg.receiverId === adminId) ||
+          (msg.senderId === adminId && msg.receiverId === user.uid)
+      );
+  }, [messages, user, adminId]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+
+    if (!user) {
+        toast({
+            variant: 'destructive',
+            title: 'Please log in',
+            description: 'You must be logged in to send a message.'
+        });
+        return;
+    }
+
+    const messageData = {
+        senderId: user.uid,
+        receiverId: adminId,
+        message: newMessage,
+        timestamp: serverTimestamp(),
+        senderName: user.displayName || 'Customer',
+        receiverName: 'Support',
+    };
+
+    try {
+        await addDoc(collection(firestore, 'chat_messages'), messageData);
+        setNewMessage('');
+    } catch (error) {
+        console.error("Error sending message:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Message failed',
+            description: 'Could not send message. Please try again.'
+        });
+    }
+  };
 
   const toggleChat = () => {
     setIsOpen(!isOpen);
@@ -33,6 +99,8 @@ export function ChatWidget() {
   const closePopup = () => {
     setShowPopup(false);
   }
+
+  if (!user) return null; // Don't show chat widget if user is not logged in
 
   return (
     <>
@@ -92,18 +160,24 @@ export function ChatWidget() {
               <CardContent className="flex-1 p-0">
                 <ScrollArea className="h-full p-4">
                   <div className="space-y-4">
-                    <ChatMessage author="support" message="Hello! How can I help you today?" />
-                    <ChatMessage author="user" message="I have a question about my order." />
+                     {activeMessages.map((msg) => (
+                        <ChatMessage key={msg.id} author={msg.senderId} message={msg.message} currentUserId={user.uid} />
+                     ))}
                   </div>
                 </ScrollArea>
               </CardContent>
               <CardFooter className="pt-4">
-                <div className="relative w-full">
-                  <Input placeholder="Type a message..." className="pr-12" />
-                  <Button size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8">
+                <form onSubmit={handleSendMessage} className="relative w-full">
+                  <Input 
+                    placeholder="Type a message..." 
+                    className="pr-12"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                  />
+                  <Button type="submit" size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8">
                     <Send className="h-4 w-4" />
                   </Button>
-                </div>
+                </form>
               </CardFooter>
             </Card>
           </motion.div>
@@ -113,8 +187,8 @@ export function ChatWidget() {
   );
 }
 
-function ChatMessage({ author, message }: { author: 'user' | 'support'; message: string }) {
-  const isUser = author === 'user';
+function ChatMessage({ author, message, currentUserId }: { author: string; message: string; currentUserId: string }) {
+  const isUser = author === currentUserId;
   return (
     <div className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
       {!isUser && (

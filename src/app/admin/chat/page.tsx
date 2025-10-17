@@ -1,59 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Search } from 'lucide-react';
+import { Send, Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import type { ChatMessage, User, WithId } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
-// Mock data for conversations, we will replace this with real data from Firestore
-const conversations = [
-    { id: 'user-2', name: 'Bob', lastMessage: 'Okay, thank you!', unread: 0, avatar: 'https://picsum.photos/seed/2/40/40' },
-    { id: 'user-3', name: 'Charlie', lastMessage: 'I need help with a custom order.', unread: 2, avatar: 'https://picsum.photos/seed/3/40/40' },
-    { id: 'user-4', name: 'David', lastMessage: 'When will my order ship?', unread: 1, avatar: 'https://picsum.photos/seed/4/40/40' },
-];
-
-const messagesByConversation: Record<string, {author: 'user' | 'admin', message: string}[]> = {
-    'user-2': [
-        { author: 'user', message: 'I have a question about my order.' },
-        { author: 'admin', message: 'I can help with that. What is your order number?' },
-        { author: 'user', message: 'It is ORD001.' },
-        { author: 'admin', message: 'Thank you. It looks like your order has been shipped and is scheduled for delivery tomorrow.' },
-        { author: 'user', message: 'Okay, thank you!' },
-    ],
-    'user-3': [
-        { author: 'user', message: 'I need help with a custom order.' },
-        { author: 'user', message: 'I want to order 10kg of wagyu beef, is that possible?' },
-    ],
-    'user-4': [
-        { author: 'user', message: 'When will my order ship?' },
-    ],
-};
-
-
-function ChatMessage({ author, message, avatar }: { author: 'user' | 'admin'; message: string, avatar: string }) {
-  const isUser = author === 'user';
+function ChatMessage({ author, message, avatar }: { author: string; message: string, avatar: string, currentAdminId: string }) {
+  const isAdmin = author === currentAdminId;
   return (
-    <div className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
-      {!isUser && (
+    <div className={cn('flex items-end gap-2', !isAdmin ? 'justify-start' : 'justify-end')}>
+       {!isAdmin && (
         <Avatar className="h-8 w-8">
           <AvatarImage src={avatar} />
           <AvatarFallback>{'U'}</AvatarFallback>
         </Avatar>
-      )}
+       )}
       <div
         className={cn(
           'max-w-[75%] rounded-lg px-3 py-2 text-sm',
-          isUser
+          isAdmin
             ? 'bg-primary text-primary-foreground rounded-br-none'
             : 'bg-muted rounded-bl-none'
         )}
@@ -66,10 +43,68 @@ function ChatMessage({ author, message, avatar }: { author: 'user' | 'admin'; me
 
 
 export default function AdminChatPage() {
-    const [selectedConversation, setSelectedConversation] = useState(conversations[1].id);
+    const { user: adminUser, isUserLoading: isAdminLoading } = useUser();
+    const firestore = useFirestore();
+
+    const usersQuery = useMemoFirebase(() => query(collection(firestore, 'users'), where('role', '==', 'user')), [firestore]);
+    const { data: users, isLoading: areUsersLoading } = useCollection<User>(usersQuery);
+
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+    const [newMessage, setNewMessage] = useState('');
+
+    const messagesQuery = useMemoFirebase(() => {
+        if (!adminUser || !selectedUserId) return null;
+        return query(
+            collection(firestore, 'chat_messages'),
+            where('senderId', 'in', [adminUser.uid, selectedUserId]),
+            where('receiverId', 'in', [adminUser.uid, selectedUserId]),
+            orderBy('timestamp')
+        );
+    }, [adminUser, selectedUserId, firestore]);
+    const { data: messages, isLoading: areMessagesLoading } = useCollection<ChatMessage>(messagesQuery);
     
-    const activeConversation = conversations.find(c => c.id === selectedConversation);
-    const activeMessages = messagesByConversation[selectedConversation] || [];
+    // Filter messages to only include those for the current conversation dyad
+    const activeMessages = useMemo(() => {
+        if (!messages || !adminUser || !selectedUserId) return [];
+        return messages.filter(msg => 
+            (msg.senderId === adminUser.uid && msg.receiverId === selectedUserId) ||
+            (msg.senderId === selectedUserId && msg.receiverId === adminUser.uid)
+        );
+    }, [messages, adminUser, selectedUserId]);
+    
+    const activeConversationUser = useMemo(() => users?.find(u => u.uid === selectedUserId), [users, selectedUserId]);
+
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim() || !adminUser || !selectedUserId) return;
+
+        const messageData = {
+            senderId: adminUser.uid,
+            receiverId: selectedUserId,
+            message: newMessage,
+            timestamp: serverTimestamp(),
+            senderName: `${adminUser.displayName}`, // Assuming admin has a name
+            receiverName: `${activeConversationUser?.firstName} ${activeConversationUser?.lastName}`,
+        };
+
+        try {
+            await addDoc(collection(firestore, 'chat_messages'), messageData);
+            setNewMessage('');
+        } catch (error) {
+            console.error("Error sending message:", error);
+        }
+    };
+    
+    // Select the first user by default
+    useState(() => {
+        if (users && users.length > 0 && !selectedUserId) {
+            setSelectedUserId(users[0].uid);
+        }
+    });
+
+    if (isAdminLoading || areUsersLoading) {
+      return <div className="p-6"><Skeleton className="h-[calc(100vh-12rem)] w-full" /></div>;
+    }
 
     return (
         <div className="flex-1 space-y-4 pt-6">
@@ -95,28 +130,23 @@ export default function AdminChatPage() {
                         </div>
                         <ScrollArea className="flex-1">
                            <div className="p-2">
-                             {conversations.map(convo => (
+                             {users?.map(user => (
                                 <button
-                                    key={convo.id}
+                                    key={user.uid}
                                     className={cn(
                                         "w-full text-left p-3 rounded-md flex items-center gap-3 transition-colors",
-                                        selectedConversation === convo.id ? "bg-secondary" : "hover:bg-muted/50"
+                                        selectedUserId === user.uid ? "bg-secondary" : "hover:bg-muted/50"
                                     )}
-                                    onClick={() => setSelectedConversation(convo.id)}
+                                    onClick={() => setSelectedUserId(user.uid)}
                                 >
                                     <Avatar>
-                                        <AvatarImage src={convo.avatar} />
-                                        <AvatarFallback>{convo.name.charAt(0)}</AvatarFallback>
+                                        <AvatarImage src={`https://picsum.photos/seed/${user.uid}/40/40`} />
+                                        <AvatarFallback>{user.firstName?.charAt(0)}{user.lastName?.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1 truncate">
-                                        <p className="font-semibold">{convo.name}</p>
-                                        <p className="text-sm text-muted-foreground truncate">{convo.lastMessage}</p>
+                                        <p className="font-semibold">{user.firstName} {user.lastName}</p>
+                                        <p className="text-sm text-muted-foreground truncate">Customer</p>
                                     </div>
-                                    {convo.unread > 0 && (
-                                        <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                                            {convo.unread}
-                                        </div>
-                                    )}
                                 </button>
                              ))}
                            </div>
@@ -125,33 +155,39 @@ export default function AdminChatPage() {
 
                     {/* Chat Window */}
                     <div className="md:col-span-2 flex flex-col h-full">
-                       {activeConversation ? (
+                       {activeConversationUser && adminUser ? (
                          <>
                             <div className="p-4 border-b flex items-center gap-3">
                                 <Avatar>
-                                    <AvatarImage src={activeConversation.avatar} />
-                                    <AvatarFallback>{activeConversation.name.charAt(0)}</AvatarFallback>
+                                    <AvatarImage src={`https://picsum.photos/seed/${activeConversationUser.uid}/40/40`} />
+                                    <AvatarFallback>{activeConversationUser.firstName?.charAt(0)}{activeConversationUser.lastName?.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <p className="font-semibold">{activeConversation.name}</p>
+                                    <p className="font-semibold">{activeConversationUser.firstName} {activeConversationUser.lastName}</p>
                                     <p className="text-xs text-muted-foreground">Online</p>
                                 </div>
                             </div>
                             <ScrollArea className="flex-1 p-4">
                                 <div className="space-y-4">
-                                   {activeMessages.map((msg, index) => (
-                                       <ChatMessage key={index} author={msg.author} message={msg.message} avatar={activeConversation.avatar} />
+                                   {areMessagesLoading && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />}
+                                   {activeMessages.map((msg) => (
+                                       <ChatMessage key={msg.id} author={msg.senderId} message={msg.message} avatar={`https://picsum.photos/seed/${activeConversationUser.uid}/32/32`} currentAdminId={adminUser.uid}/>
                                    ))}
                                 </div>
                             </ScrollArea>
-                            <div className="p-4 border-t bg-background">
+                            <form onSubmit={handleSendMessage} className="p-4 border-t bg-background">
                                 <div className="relative">
-                                    <Input placeholder="Type a message..." className="pr-12" />
-                                    <Button size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8">
+                                    <Input 
+                                        placeholder="Type a message..." 
+                                        className="pr-12" 
+                                        value={newMessage}
+                                        onChange={(e) => setNewMessage(e.target.value)}
+                                    />
+                                    <Button type="submit" size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8">
                                         <Send className="h-4 w-4" />
                                     </Button>
                                 </div>
-                            </div>
+                            </form>
                          </>
                        ) : (
                            <div className="flex flex-1 items-center justify-center text-muted-foreground">
