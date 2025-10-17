@@ -1,9 +1,8 @@
 
 'use server';
 import * as admin from 'firebase-admin';
-import { onDocumentWritten, onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onUserCreate } from 'firebase-functions/v2/auth';
-import { UserRecord } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 
 admin.initializeApp();
@@ -28,28 +27,29 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   try {
     // Check if this is the first user
     const userCountSnapshot = await usersCollectionRef.limit(2).get();
-    const isFirstUser = userCountSnapshot.size <= 1;
+    // If there is only 1 user document (or none), this new user is the first one.
+    const isFirstUser = userCountSnapshot.size <= 1; 
 
     let userRole = 'user';
-    // Use a transaction to make this process more robust
-    await db.runTransaction(async (transaction) => {
-        if (isFirstUser) {
-            userRole = 'admin';
-            console.log(`First user detected. Granting admin role to ${uid}.`);
-            await admin.auth().setCustomUserClaims(uid, { admin: true });
-        }
+    
+    if (isFirstUser) {
+        userRole = 'admin';
+        console.log(`First user detected. Granting admin custom claim to ${uid}.`);
+        // Set a custom claim on the user's auth token
+        await admin.auth().setCustomUserClaims(uid, { admin: true });
+    }
 
-        // Use merge:true to avoid overwriting data if the doc was created manually
-        transaction.set(userRef, {
-            uid: uid,
-            email: email,
-            firstName: firstName,
-            lastName: lastName,
-            role: userRole,
-            createdAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
-    });
-    console.log(`Successfully created or merged user document for ${uid} with role: ${userRole}`);
+    // Create the user document in Firestore
+    await userRef.set({
+        uid: uid,
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        role: userRole,
+        createdAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    
+    console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
 
   } catch (error) {
     console.error(`Error creating user document for ${uid}:`, error);
