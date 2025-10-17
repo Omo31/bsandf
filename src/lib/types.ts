@@ -1,3 +1,4 @@
+
 export type Product = {
   id: string;
   name: string;
@@ -11,12 +12,13 @@ export type WithId<T> = T & { id: string };
 
 export type User = {
   uid: string;
-  email: string;
+  email: string | null;
   role: 'admin' | 'user';
-  firstName: string;
-  lastName: string;
+  firstName: string | null;
+  lastName: string | null;
   shippingAddress?: string;
   phoneNumber?: string;
+  createdAt: any; // Can be Firestore's Timestamp
 };
 
 
@@ -86,5 +88,3 @@ export type HomePageSettings = {
     heroImageUrl: string;
     featuredProductIds: string[];
 };
-
-    

@@ -2,7 +2,7 @@
 'use server';
 import * as admin from 'firebase-admin';
 import { onDocumentWritten, onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
-import { onUserCreate, beforeUserCreated, UserCreatedEvent } from 'firebase-functions/v2/auth';
+import { onUserCreate } from 'firebase-functions/v2/auth';
 import { UserRecord } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -13,7 +13,7 @@ const db = admin.firestore();
  * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
  * It also grants admin role to the first user.
  */
-export const createFirestoreUser = onUserCreate(async (event: UserCreatedEvent) => {
+export const createFirestoreUser = onUserCreate(async (event) => {
   const user = event.data;
   const { uid, email, displayName } = user;
 
@@ -26,36 +26,33 @@ export const createFirestoreUser = onUserCreate(async (event: UserCreatedEvent) 
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
+    // Check if this is the first user
     const userCountSnapshot = await usersCollectionRef.limit(2).get();
     const isFirstUser = userCountSnapshot.size <= 1;
 
     let userRole = 'user';
-    if (isFirstUser) {
-        userRole = 'admin';
-        console.log(`First user detected. Granting admin role and custom claim to ${uid}.`);
-        await admin.auth().setCustomUserClaims(uid, { admin: true });
-    }
-    
-    // Create the user document with the correct role and other info.
-    // The displayName is already set on the auth user object client-side.
-    await userRef.set({
-        uid: uid,
-        email: email,
-        firstName: firstName,
-        lastName: lastName,
-        role: userRole,
-        createdAt: FieldValue.serverTimestamp(),
-        // We can't get shipping address or phone number here,
-        // it must be written from the client after signup.
-        // This is fine, as they are optional.
-        shippingAddress: '',
-        phoneNumber: '',
-    }, { merge: true });
-    
-    console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
+    // Use a transaction to make this process more robust
+    await db.runTransaction(async (transaction) => {
+        if (isFirstUser) {
+            userRole = 'admin';
+            console.log(`First user detected. Granting admin role to ${uid}.`);
+            await admin.auth().setCustomUserClaims(uid, { admin: true });
+        }
+
+        // Use merge:true to avoid overwriting data if the doc was created manually
+        transaction.set(userRef, {
+            uid: uid,
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            role: userRole,
+            createdAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+    });
+    console.log(`Successfully created or merged user document for ${uid} with role: ${userRole}`);
 
   } catch (error) {
-    console.error(`Error in createFirestoreUser for ${uid}:`, error);
+    console.error(`Error creating user document for ${uid}:`, error);
   }
 });
 
@@ -113,8 +110,8 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     const userData = userDoc.data();
     const userName = userData ? `${userData.firstName} ${userData.lastName}` : 'A customer';
 
-    const adminUsers = await db.collection('users').where('role', '==', 'admin').get();
-    if (adminUsers.empty) {
+    const adminRoles = await db.collection('users').where('role', '==', 'admin').get();
+    if (adminRoles.empty) {
       console.log('No admins found to notify.');
       return;
     }
@@ -128,14 +125,14 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
       timestamp: FieldValue.serverTimestamp(),
     };
 
-    adminUsers.docs.forEach(adminDoc => {
+    adminRoles.docs.forEach(adminDoc => {
       const adminId = adminDoc.id;
       const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
       batch.set(notificationRef, { ...notification, userId: adminId });
     });
 
     await batch.commit();
-    console.log(`Notified ${adminUsers.size} admins about new order ${orderId} for review.`);
+    console.log(`Notified ${adminRoles.size} admins about new order ${orderId} for review.`);
   } catch (error) {
     console.error(`Error creating notifications for order ${orderId}:`, error);
   }
@@ -202,8 +199,8 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       const userDoc = await db.collection('users').doc(userId).get();
       const userName = userDoc.exists ? `${userDoc.data()?.firstName} ${userDoc.data()?.lastName}` : 'A customer';
       
-      const adminUsers = await db.collection('users').where('role', '==', 'admin').get();
-      if (adminUsers.empty) {
+      const adminRoles = await db.collection('users').where('role', '==', 'admin').get();
+      if (adminRoles.empty) {
         console.log('No admins found to notify.');
         return;
       }
@@ -217,14 +214,14 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
         timestamp: FieldValue.serverTimestamp(),
       };
 
-      adminUsers.docs.forEach(adminDoc => {
+      adminRoles.docs.forEach(adminDoc => {
         const adminId = adminDoc.id;
         const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
         batch.set(notificationRef, { ...adminNotification, userId: adminId });
       });
 
       await batch.commit();
-      console.log(`Notified ${adminUsers.size} admins about status change for order ${orderId}.`);
+      console.log(`Notified ${adminRoles.size} admins about status change for order ${orderId}.`);
     }
 
   } catch (error) {
