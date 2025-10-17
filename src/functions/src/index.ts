@@ -1,9 +1,8 @@
 
 'use server';
 import * as admin from 'firebase-admin';
-import { onDocumentWritten, onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onUserCreate } from 'firebase-functions/v2/auth';
-import { UserRecord } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 
 admin.initializeApp();
@@ -29,15 +28,12 @@ export const createFirestoreUser = onUserCreate(async (event) => {
     const isFirstUser = userCountSnapshot.size <= 1;
 
     let userRole = 'user';
-    const claims: { [key: string]: any } = {};
-
+    
     if (isFirstUser) {
       userRole = 'admin';
-      claims.admin = true;
       console.log(`First user detected. Granting admin role and custom claim to ${uid}.`);
-      
       // Set the custom claim immediately. This is the crucial fix.
-      await admin.auth().setCustomUserClaims(uid, claims);
+      await admin.auth().setCustomUserClaims(uid, { admin: true });
     }
     
     // Create the user document in Firestore
@@ -50,7 +46,8 @@ export const createFirestoreUser = onUserCreate(async (event) => {
       createdAt: FieldValue.serverTimestamp(),
     }, { merge: true });
 
-    // If they are the first user, also create the doc in roles_admin for consistency
+    // If they are the first user, also create the doc in roles_admin for consistency if needed elsewhere,
+    // though custom claims are primary.
     if (isFirstUser) {
         const adminRoleRef = db.collection('roles_admin').doc(uid);
         await adminRoleRef.set({ uid: uid });
@@ -62,6 +59,7 @@ export const createFirestoreUser = onUserCreate(async (event) => {
     console.error(`Error in createFirestoreUser for ${uid}:`, error);
   }
 });
+
 
 /**
  * Trigger to update product inventory when an order status changes to 'Accepted'.
@@ -116,8 +114,8 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     const userData = userDoc.data();
     const userName = userData ? `${userData.firstName} ${userData.lastName}` : 'A customer';
 
-    const adminRoles = await db.collection('roles_admin').get();
-    if (adminRoles.empty) {
+    const adminUsers = await db.collection('users').where('role', '==', 'admin').get();
+    if (adminUsers.empty) {
       console.log('No admins found to notify.');
       return;
     }
@@ -131,14 +129,14 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
       timestamp: FieldValue.serverTimestamp(),
     };
 
-    adminRoles.docs.forEach(adminDoc => {
+    adminUsers.docs.forEach(adminDoc => {
       const adminId = adminDoc.id;
       const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
       batch.set(notificationRef, { ...notification, userId: adminId });
     });
 
     await batch.commit();
-    console.log(`Notified ${adminRoles.size} admins about new order ${orderId} for review.`);
+    console.log(`Notified ${adminUsers.size} admins about new order ${orderId} for review.`);
   } catch (error) {
     console.error(`Error creating notifications for order ${orderId}:`, error);
   }
@@ -205,8 +203,8 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       const userDoc = await db.collection('users').doc(userId).get();
       const userName = userDoc.exists ? `${userDoc.data()?.firstName} ${userDoc.data()?.lastName}` : 'A customer';
       
-      const adminRoles = await db.collection('roles_admin').get();
-      if (adminRoles.empty) {
+      const adminUsers = await db.collection('users').where('role', '==', 'admin').get();
+      if (adminUsers.empty) {
         console.log('No admins found to notify.');
         return;
       }
@@ -220,14 +218,14 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
         timestamp: FieldValue.serverTimestamp(),
       };
 
-      adminRoles.docs.forEach(adminDoc => {
+      adminUsers.docs.forEach(adminDoc => {
         const adminId = adminDoc.id;
         const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
         batch.set(notificationRef, { ...adminNotification, userId: adminId });
       });
 
       await batch.commit();
-      console.log(`Notified ${adminRoles.size} admins about status change for order ${orderId}.`);
+      console.log(`Notified ${adminUsers.size} admins about status change for order ${orderId}.`);
     }
 
   } catch (error) {
