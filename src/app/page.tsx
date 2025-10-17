@@ -17,7 +17,6 @@ export default function Home() {
   const flyerImage = placeholderImages.find(p => p.id === 'flyer-1');
   
   const { user, isUserLoading } = useUser();
-  const [isAdmin, setIsAdmin] = useState(false);
   const firestore = useFirestore();
 
   // Fetch homepage settings
@@ -36,16 +35,6 @@ export default function Home() {
     }
     return allProducts.filter(p => settings.featuredProductIds.includes(p.id));
   }, [settings, allProducts]);
-
-  useEffect(() => {
-    if (user) {
-      user.getIdTokenResult().then(idTokenResult => {
-        setIsAdmin(!!idTokenResult.claims.admin);
-      });
-    } else {
-      setIsAdmin(false);
-    }
-  }, [user]);
 
   const defaultHero = {
     title: "BeautifulSoup & Food",
@@ -90,7 +79,7 @@ export default function Home() {
           </div>
         </section>
 
-        {!isUserLoading && isAdmin && (
+        {user && (
           <section id="flyer" className="w-full py-12 md:py-24 lg:py-32 bg-background">
             <div className="container mx-auto px-4 md:px-6">
               <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
@@ -164,5 +153,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

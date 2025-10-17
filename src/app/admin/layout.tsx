@@ -17,7 +17,10 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/icons';
-import { AdminAuthGuard } from '@/components/auth/admin-auth-guard';
+import { useUser } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
 
 const navLinks = [
   { href: '/admin', label: 'Summary', icon: BarChart },
@@ -29,11 +32,33 @@ const navLinks = [
   { href: '/admin/flyer-generator', label: 'AI Flyer Generator', icon: Wand2 },
 ];
 
+function AuthWrapper({ children }: { children: React.ReactNode }) {
+    const { user, isUserLoading } = useUser();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!isUserLoading && !user) {
+            router.push('/login');
+        }
+    }, [user, isUserLoading, router]);
+
+    if (isUserLoading || !user) {
+        return (
+             <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
+                <p>Loading...</p>
+             </div>
+        )
+    }
+
+    return <>{children}</>;
+}
+
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <AdminAuthGuard>
+    <AuthWrapper>
       <SidebarProvider>
         <Sidebar>
           <SidebarHeader>
@@ -77,6 +102,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="p-4 md:p-6">{children}</div>
         </SidebarInset>
       </SidebarProvider>
-    </AdminAuthGuard>
+    </AuthWrapper>
   );
 }

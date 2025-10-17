@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Download, UserPlus, UserMinus, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Download, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,37 +40,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 import type { User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
 
 function UserActions({ user: targetUser }: { user: WithId<User> }) {
-  const firestore = useFirestore();
   const { toast } = useToast();
-  const [isAdminRole, setIsAdminRole] = useState(false);
-
-  useEffect(() => {
-    setIsAdminRole(targetUser.role === 'admin');
-  }, [targetUser.role]);
-
-  const handleToggleAdmin = async () => {
-    const adminRoleRef = doc(firestore, 'roles_admin', targetUser.uid);
-    try {
-      if (isAdminRole) {
-        await deleteDoc(adminRoleRef);
-        toast({ title: 'Admin Revoked', description: `${targetUser.firstName} is no longer an admin.` });
-      } else {
-        await setDoc(adminRoleRef, { uid: targetUser.uid }); // Add any relevant data
-        toast({ title: 'Admin Granted', description: `${targetUser.firstName} is now an admin.` });
-      }
-      setIsAdminRole(!isAdminRole);
-    } catch (error) {
-      console.error('Error toggling admin status:', error);
-      toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not change admin status.' });
-    }
-  };
 
   const handleDeleteUser = () => {
     toast({
@@ -91,14 +67,6 @@ function UserActions({ user: targetUser }: { user: WithId<User> }) {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuItem>View Order History</DropdownMenuItem>
-        <DropdownMenuItem onClick={handleToggleAdmin}>
-          {isAdminRole ? (
-            <UserMinus className="mr-2 h-4 w-4" />
-          ) : (
-            <UserPlus className="mr-2 h-4 w-4" />
-          )}
-          {isAdminRole ? 'Revoke Admin' : 'Make Admin'}
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <AlertDialog>
           <AlertDialogTrigger asChild>

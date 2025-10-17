@@ -1,9 +1,8 @@
 
 'use server';
 import * as admin from 'firebase-admin';
-import { onDocumentWritten, onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onUserCreate } from 'firebase-functions/v2/auth';
-import { UserRecord } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 
 admin.initializeApp();
@@ -11,14 +10,12 @@ const db = admin.firestore();
 
 /**
  * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
- * It also grants admin role to the first user.
  */
 export const createFirestoreUser = onUserCreate(async (event) => {
   const user = event.data;
   const { uid, email, displayName } = user;
 
   const userRef = db.collection('users').doc(uid);
-  const usersCollectionRef = db.collection('users');
 
   // Split displayName into firstName and lastName, with fallbacks.
   const nameParts = displayName?.split(' ') || [];
@@ -26,89 +23,25 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
-    // Check if this is the first user
-    const userCountSnapshot = await usersCollectionRef.limit(2).get();
-    const isFirstUser = userCountSnapshot.size <= 1;
+    // Just create a user with the role 'user'
+    const userRole = 'user';
 
-    let userRole = 'user';
-    // Use a transaction to make this process more robust
-    await db.runTransaction(async (transaction) => {
-        if (isFirstUser) {
-            userRole = 'admin';
-            console.log(`First user detected. Granting admin role to ${uid}.`);
-            const adminRoleRef = db.collection('roles_admin').doc(uid);
-            transaction.set(adminRoleRef, { uid: uid });
-        }
-
-        // Use merge:true to avoid overwriting data if the doc was created manually
-        transaction.set(userRef, {
-            uid: uid,
-            email: email,
-            firstName: firstName,
-            lastName: lastName,
-            role: userRole,
-            createdAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
-    });
-    console.log(`Successfully created or merged user document for ${uid} with role: ${userRole}`);
+    await userRef.set({
+        uid: uid,
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        role: userRole,
+        createdAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    
+    console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
 
   } catch (error) {
     console.error(`Error creating user document for ${uid}:`, error);
   }
 });
 
-
-/**
- * Trigger to grant or revoke admin custom claims based on the existence
- * of a document in the /roles_admin/{userId} collection.
- */
-export const handleAdminRole = onDocumentWritten('roles_admin/{userId}', async event => {
-  const userId = event.params.userId;
-  const afterData = event.data?.after.data();
-
-  try {
-    const user: UserRecord = await admin.auth().getUser(userId);
-    const currentCustomClaims = user.customClaims || {};
-
-    // Ensure user document exists in Firestore.
-    const userRef = db.collection('users').doc(userId);
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) {
-        const { email, displayName } = user;
-        const nameParts = displayName?.split(' ') || [];
-        const firstName = nameParts[0] || 'New';
-        const lastName = nameParts.slice(1).join(' ') || 'User';
-        await userRef.set({
-            uid: userId,
-            email: email,
-            firstName: firstName,
-            lastName: lastName,
-            role: 'user',
-            createdAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
-        console.log(`Created missing user document for ${userId} during admin role handling.`);
-    }
-
-    // If a document exists, grant admin role.
-    if (afterData) {
-      if (currentCustomClaims.admin !== true) {
-        console.log(`Granting admin role to user: ${userId}`);
-        await admin.auth().setCustomUserClaims(userId, { ...currentCustomClaims, admin: true });
-        await userRef.update({ role: 'admin' });
-      }
-    } else {
-      // If document is deleted, revoke admin role.
-      if (currentCustomClaims.admin === true) {
-        console.log(`Revoking admin role for user: ${userId}`);
-        const { admin, ...otherClaims } = currentCustomClaims;
-        await admin.auth().setCustomUserClaims(userId, otherClaims);
-        await userRef.update({ role: 'user' });
-      }
-    }
-  } catch (error) {
-    console.error(`Error processing admin role for user ${userId}:`, error);
-  }
-});
 
 /**
  * Trigger to update product inventory when an order status changes to 'Accepted'.
@@ -163,7 +96,7 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     const userData = userDoc.data();
     const userName = userData ? `${userData.firstName} ${userData.lastName}` : 'A customer';
 
-    const adminRoles = await db.collection('roles_admin').get();
+    const adminRoles = await db.collection('users').where('role', '==', 'admin').get();
     if (adminRoles.empty) {
       console.log('No admins found to notify.');
       return;
@@ -252,7 +185,7 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       const userDoc = await db.collection('users').doc(userId).get();
       const userName = userDoc.exists ? `${userDoc.data()?.firstName} ${userDoc.data()?.lastName}` : 'A customer';
       
-      const adminRoles = await db.collection('roles_admin').get();
+      const adminRoles = await db.collection('users').where('role', '==', 'admin').get();
       if (adminRoles.empty) {
         console.log('No admins found to notify.');
         return;
