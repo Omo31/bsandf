@@ -314,34 +314,16 @@ function OrderTable({ orders, isLoading }: { orders: WithId<Order>[] | null; isL
 export default function OrderManagementPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-  const [isOwner, setIsOwner] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      user.getIdTokenResult().then(idTokenResult => {
-        setIsOwner(idTokenResult.claims.role === 'owner');
-      });
-    }
-  }, [user]);
   
-  const ordersQuery = useMemo(() => {
-    if (!firestore || !isOwner) return null;
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'));
-  }, [firestore, isOwner]);
+  }, [firestore]);
 
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
-  const isLoading = isUserLoading || (isOwner && areOrdersLoading);
+  const isLoading = isUserLoading || areOrdersLoading;
   
-  if (!isOwner && !isUserLoading) {
-    return (
-       <div className="flex-1 space-y-4">
-        <h2 className="text-3xl font-bold tracking-tight">Access Denied</h2>
-        <p className="text-muted-foreground">You do not have permission to view this page.</p>
-      </div>
-    )
-  }
-
   return (
     <div className="flex-1 space-y-4">
       <div className="flex items-center justify-between space-y-2">
