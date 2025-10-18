@@ -16,6 +16,8 @@ import {
   Wand2,
   LayoutDashboard,
   Copyright,
+  Shield,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
@@ -33,6 +35,9 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { useUser } from '@/firebase';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 const userNavLinks = [
   { href: '/dashboard', label: 'Summary', icon: BarChart },
@@ -55,6 +60,7 @@ const adminNavLinks = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useUser();
+  const [isAdminOpen, setIsAdminOpen] = useState(true);
 
   const getActiveTab = (linkHref: string) => {
     if (linkHref === '/dashboard') {
@@ -89,21 +95,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {user && (
             <>
               <SidebarSeparator />
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <div className="px-2 text-xs font-medium text-muted-foreground">Admin Controls</div>
-                </SidebarMenuItem>
-                {adminNavLinks.map((link) => (
-                  <SidebarMenuItem key={link.href}>
-                    <SidebarMenuButton asChild isActive={getActiveTab(link.href)} tooltip={{ children: link.label }}>
-                      <Link href={link.href}>
-                        <link.icon />
-                        <span>{link.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
+              <Collapsible open={isAdminOpen} onOpenChange={setIsAdminOpen} className="w-full">
+                 <SidebarMenu>
+                    <SidebarMenuItem>
+                         <CollapsibleTrigger asChild>
+                            <SidebarMenuButton variant="ghost" className="w-full justify-between">
+                               <div className="flex items-center gap-2">
+                                  <Shield />
+                                  <span>Admin Panel</span>
+                               </div>
+                               <ChevronDown className={cn("h-4 w-4 transition-transform", isAdminOpen && "rotate-180")} />
+                            </SidebarMenuButton>
+                         </CollapsibleTrigger>
+                    </SidebarMenuItem>
+                 </SidebarMenu>
+                <CollapsibleContent>
+                    <SidebarMenu className="pl-4 border-l ml-4">
+                        {adminNavLinks.map((link) => (
+                        <SidebarMenuItem key={link.href}>
+                            <SidebarMenuButton asChild isActive={getActiveTab(link.href)} tooltip={{ children: link.label }}>
+                            <Link href={link.href}>
+                                <link.icon />
+                                <span>{link.label}</span>
+                            </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </CollapsibleContent>
+              </Collapsible>
             </>
           )}
         </SidebarContent>
@@ -126,5 +146,3 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </SidebarProvider>
   );
 }
-
-    
