@@ -18,15 +18,12 @@ export const createUserDocument = onUserCreate(async (event) => {
   const user = event.data;
   const { uid, email, displayName } = user;
 
-  const usersCollection = db.collection('users');
-
   // Parse displayName to get first and last names
   const nameParts = displayName?.split(' ') || [];
   const firstName = nameParts[0] || 'New';
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
-  // Create the user document in the 'users' collection.
-  const userRef = usersCollection.doc(uid);
+  const userRef = db.collection('users').doc(uid);
   try {
     await userRef.set({
       uid,
@@ -159,3 +156,4 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
     console.error('Error sending order status notification:', error);
   }
 });
+    
