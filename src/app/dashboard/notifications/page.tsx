@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo } from 'react';
@@ -21,7 +22,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
   const firestore = useFirestore();
 
   const handleMarkAsRead = () => {
-    if (notification.isRead) return;
+    if (notification.isRead || !firestore) return;
     const notifRef = doc(firestore, `users/${notification.userId}/notifications/${notification.id}`);
     updateDoc(notifRef, { isRead: true });
   };
@@ -53,19 +54,19 @@ function NotificationItem({ notification }: { notification: Notification }) {
 }
 
 export default function NotificationsPage() {
-  const { user } = useUser();
+  const { user, areServicesAvailable, isUserLoading } = useUser();
   const firestore = useFirestore();
 
   const notificationsQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !areServicesAvailable || !firestore) return null;
     return query(collection(firestore, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'));
-  }, [user, firestore]);
+  }, [user, firestore, areServicesAvailable]);
 
   const { data: notifications, isLoading } = useCollection<Notification>(notificationsQuery);
   const unreadCount = notifications?.filter(n => !n.isRead).length || 0;
 
   const handleMarkAllAsRead = () => {
-    if (!user || !notifications) return;
+    if (!user || !notifications || !firestore) return;
     notifications.forEach(notification => {
       if (!notification.isRead) {
         const notifRef = doc(firestore, `users/${user.uid}/notifications/${notification.id}`);
@@ -73,6 +74,23 @@ export default function NotificationsPage() {
       }
     });
   };
+
+  const finalIsLoading = isLoading || isUserLoading;
+
+   if (!user && !finalIsLoading) {
+    return (
+       <div className="flex-1 space-y-4 p-8 pt-6">
+         <div className="flex items-center justify-between space-y-2">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Notifications</h2>
+              <p className="text-muted-foreground">
+                Please log in to see your notifications.
+              </p>
+            </div>
+          </div>
+       </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -91,25 +109,25 @@ export default function NotificationsPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>All Updates</CardTitle>
-            <CardDescription>You have {unreadCount} unread notifications.</CardDescription>
+            <CardDescription>You have {finalIsLoading ? '...' : unreadCount} unread notifications.</CardDescription>
           </div>
            <Bell className="h-6 w-6 text-muted-foreground" />
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y">
-            {isLoading && (
+            {finalIsLoading && (
               <div className="p-4 space-y-4">
                 <Skeleton className="h-16 w-full" />
                 <Skeleton className="h-16 w-full" />
                 <Skeleton className="h-16 w-full" />
               </div>
             )}
-            {!isLoading && notifications && notifications.length > 0 ? (
+            {!finalIsLoading && notifications && notifications.length > 0 ? (
               notifications.map((notification) => (
                 <NotificationItem key={notification.id} notification={notification} />
               ))
             ) : (
-              !isLoading && (
+              !finalIsLoading && (
                 <div className="p-8 text-center text-muted-foreground">
                   You have no notifications yet.
                 </div>

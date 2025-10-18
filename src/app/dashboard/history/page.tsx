@@ -230,15 +230,31 @@ export default function PurchaseHistoryPage() {
   const firestore = useFirestore();
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!user || !areServicesAvailable) return null;
+    if (!user || !areServicesAvailable || !firestore) return null;
     return query(collection(firestore, `users/${user.uid}/orders`));
   }, [user, firestore, areServicesAvailable]);
   
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
   const pendingApprovalCount = useMemo(() => {
-    return orders?.filter(o => o.status === 'Pending User Approval').length || 0;
+    if (!orders) return 0;
+    return orders.filter(o => o.status === 'Pending User Approval').length;
   }, [orders]);
+
+  if (!user && !isLoading) {
+    return (
+       <div className="flex-1 space-y-4 p-8 pt-6">
+         <div className="flex items-center justify-between space-y-2">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Purchase History</h2>
+              <p className="text-muted-foreground">
+                Please log in to view your order history.
+              </p>
+            </div>
+          </div>
+       </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">

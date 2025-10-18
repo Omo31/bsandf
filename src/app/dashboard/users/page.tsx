@@ -19,7 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Download, Users, MoreHorizontal, Eye } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import type { User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -118,15 +118,14 @@ function UserTable({ users, isLoading }: { users: WithId<User>[] | null; isLoadi
 
 export default function UserManagementPage() {
     const firestore = useFirestore();
-    const { user, areServicesAvailable } = useUser();
+    const { areServicesAvailable } = useUser();
     
-    // This query now fetches only the currently logged-in user.
-    // This is a valid and secure query that will not be blocked.
+    // Fetch all users. This requires open security rules for development.
     const usersQuery = useMemoFirebase(
-        () => (firestore && areServicesAvailable && user
-            ? query(collection(firestore, 'users'), where('uid', '==', user.uid))
+        () => (firestore && areServicesAvailable
+            ? query(collection(firestore, 'users'))
             : null),
-        [firestore, areServicesAvailable, user]
+        [firestore, areServicesAvailable]
     );
 
     const { data: users, isLoading } = useCollection<User>(usersQuery);
