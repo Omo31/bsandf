@@ -31,11 +31,16 @@ function WhatsAppIcon(props: SVGProps<SVGSVGElement>) {
 export function WhatsAppFAB() {
   const firestore = useFirestore();
   const { areServicesAvailable } = useUser();
-  const settingsDocRef = useMemoFirebase(() => (firestore && areServicesAvailable ? doc(firestore, 'settings', 'footer_settings') : null), [firestore, areServicesAvailable]);
+  const settingsDocRef = useMemoFirebase(() => (areServicesAvailable ? doc(firestore, 'settings', 'footer_settings') : null), [firestore, areServicesAvailable]);
   const { data: settings, isLoading } = useDoc<FooterSettings>(settingsDocRef);
 
   if (isLoading && areServicesAvailable) {
     return <Skeleton className="fixed bottom-6 right-6 h-14 w-14 rounded-full" />;
+  }
+
+  // If services aren't ready, don't render anything yet
+  if (!areServicesAvailable) {
+    return null;
   }
 
   const configuredNumber = settings?.whatsappNumber;

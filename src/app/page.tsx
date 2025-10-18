@@ -129,7 +129,7 @@ export default function Home() {
               Featured Products
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-              {isLoading && [...Array(8)].map((_, i) => (
+              {(isLoading && areServicesAvailable) && [...Array(8)].map((_, i) => (
                 <Card key={i}>
                   <CardContent className="p-0">
                     <Skeleton className="w-full aspect-[4/3]" />
