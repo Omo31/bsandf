@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,6 +15,7 @@ import {
   Settings,
   Wand2,
   LayoutDashboard,
+  Copyright,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
@@ -45,6 +47,7 @@ const adminNavLinks = [
   { href: '/dashboard/inventory', label: 'Inventory', icon: ShoppingCart },
   { href: '/dashboard/orders', label: 'Order Management', icon: ListOrdered },
   { href: '/dashboard/homepage-settings', label: 'Homepage Settings', icon: LayoutDashboard },
+  { href: '/dashboard/footer-settings', label: 'Footer Settings', icon: Copyright },
   { href: '/dashboard/custom-order-settings', label: 'Custom Orders', icon: Settings },
   { href: '/dashboard/flyer-generator', label: 'AI Flyer Generator', icon: Wand2 },
 ];
@@ -123,3 +126,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </SidebarProvider>
   );
 }
+
+    

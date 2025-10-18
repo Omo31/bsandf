@@ -1,5 +1,6 @@
 
 
+
 export type Product = {
   id: string;
   name: string;
@@ -89,3 +90,18 @@ export type HomePageSettings = {
     heroImageUrl: string;
     featuredProductIds: string[];
 };
+
+export type FooterSettings = {
+    id: string;
+    tagline: string;
+    aboutUs: string;
+    address: string;
+    email: string;
+    openingHours: string;
+    facebookUrl: string;
+    instagramUrl: string;
+    youtubeUrl: string;
+    productVideoId: string;
+}
+
+    
