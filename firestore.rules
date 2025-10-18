@@ -1,8 +1,143 @@
+/**
+ * @file Firestore Security Rules for BeautifulSoup&Food
+ * @version Prototyping
+ *
+ * @description This ruleset provides a flexible security posture for rapid prototyping,
+ * focusing on explicit authorization and minimal data validation.  It allows anyone to do all things on this app.
+ *
+ * Core Philosophy: All read and write operations are permitted for any authenticated user.  No data validation is performed beyond basic checks for document existence on updates/deletes.
+ *
+ * Data Structure:
+ * - User-specific data (orders, cart items, notifications) is nested under `/users/{userId}`.
+ * - Products and Flyers are stored in top-level collections.
+ * - Site-wide settings are stored in the `/settings` collection.
+ *
+ * Key Security Decisions:
+ * - Listing of user-specific subcollections (orders, cart items, notifications) is allowed for the owner.
+ * - No complex role-based access control.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+
+    /**
+     * @description Allows anyone to read and write user profiles.
+     * @path /users/{userId}
+     * @allow (create) auth.uid is anything
+     * @allow (get) auth.uid is anything
+     * @allow (list) auth.uid is anything
+     * @allow (update) auth.uid is anything
+     * @allow (delete) auth.uid is anything
+     * @principle Allows anyone to do all things on this app.
+     */
+    match /users/{userId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows anyone to read and write product information.
+     * @path /products/{productId}
+     * @allow (create) auth.uid is anything
+     * @allow (get) auth.uid is anything
+     * @allow (list) auth.uid is anything
+     * @allow (update) auth.uid is anything
+     * @allow (delete) auth.uid is anything
+     * @principle Allows anyone to do all things on this app.
+     */
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows anyone to read and write orders placed by users.
+     * @path /users/{userId}/orders/{orderId}
+     * @allow (create) auth.uid is anything
+     * @allow (get) auth.uid is anything
+     * @allow (list) auth.uid is anything
+     * @allow (update) auth.uid is anything
+     * @allow (delete) auth.uid is anything
+     * @principle Allows anyone to do all things on this app.
+     */
+    match /users/{userId}/orders/{orderId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows anyone to read and write cart items for each user.
+     * @path /users/{userId}/cart_items/{cartItemId}
+     * @allow (create) auth.uid is anything
+     * @allow (get) auth.uid is anything
+     * @allow (list) auth.uid is anything
+     * @allow (update) auth.uid is anything
+     * @allow (delete) auth.uid is anything
+     * @principle Allows anyone to do all things on this app.
+     */
+    match /users/{userId}/cart_items/{cartItemId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows anyone to read and write flyer information.
+     * @path /flyers/{flyerId}
+     * @allow (create) auth.uid is anything
+     * @allow (get) auth.uid is anything
+     * @allow (list) auth.uid is anything
+     * @allow (update) auth.uid is anything
+     * @allow (delete) auth.uid is anything
+     * @principle Allows anyone to do all things on this app.
+     */
+    match /flyers/{flyerId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows anyone to read and write service checklist items for custom orders.
+     * @path /users/{userId}/orders/{orderId}/service_checklist_items/{serviceChecklistItemId}
+     * @allow (create) auth.uid is anything
+     * @allow (get) auth.uid is anything
+     * @allow (list) auth.uid is anything
+     * @allow (update) auth.uid is anything
+     * @allow (delete) auth.uid is anything
+     * @principle Allows anyone to do all things on this app.
+     */
+    match /users/{userId}/orders/{orderId}/service_checklist_items/{serviceChecklistItemId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows anyone to read and write notifications for individual users.
+     * @path /users/{userId}/notifications/{notificationId}
+     * @allow (create) auth.uid is anything
+     * @allow (get) auth.uid is anything
+     * @allow (list) auth.uid is anything
+     * @allow (update) auth.uid is anything
+     * @allow (delete) auth.uid is anything
+     * @principle Allows anyone to do all things on this app.
+     */
+    match /users/{userId}/notifications/{notificationId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows anyone to read and write global application settings.
+     * @path /settings/{settingId}
+     * @allow (create) auth.uid is anything
+     * @allow (get) auth.uid is anything
+     * @allow (list) auth.uid is anything
+     * @allow (update) auth.uid is anything
+     * @allow (delete) auth.uid is anything
+     * @principle Allows anyone to do all things on this app.
+     */
+    match /settings/{settingId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
   }
 }

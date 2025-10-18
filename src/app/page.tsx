@@ -10,7 +10,7 @@ import { placeholderImages } from '@/lib/placeholder-images';
 import { ArrowRight } from 'lucide-react';
 import { useUser, useCollection, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import type { Product, WithId, HomePageSettings } from '@/lib/types';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState, useMemo } from 'react';
 
@@ -30,12 +30,13 @@ export default function Home() {
 
   // Determine featured products
   const featuredProducts = useMemo(() => {
-    if (!settings || !settings.featuredProductIds || !allProducts) {
+    if (!areServicesAvailable || !allProducts) return [];
+    if (!settings || !settings.featuredProductIds) {
       // Fallback to first 8 products if no settings
       return allProducts?.slice(0, 8);
     }
     return allProducts.filter(p => settings.featuredProductIds.includes(p.id));
-  }, [settings, allProducts]);
+  }, [settings, allProducts, areServicesAvailable]);
 
   const defaultHero = {
     title: "BeautifulSoup & Food",
@@ -129,7 +130,7 @@ export default function Home() {
               Featured Products
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-              {(isLoading && areServicesAvailable) && [...Array(8)].map((_, i) => (
+              {(isLoading || !areServicesAvailable) && [...Array(8)].map((_, i) => (
                 <Card key={i}>
                   <CardContent className="p-0">
                     <Skeleton className="w-full aspect-[4/3]" />
@@ -145,7 +146,7 @@ export default function Home() {
                   </CardFooter>
                 </Card>
               ))}
-              {featuredProducts && featuredProducts.map((product) => (
+              {areServicesAvailable && featuredProducts && featuredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
