@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Logo, Facebook, Twitter, Instagram } from '@/components/icons';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { FooterSettings } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
@@ -11,8 +11,10 @@ import { Youtube } from 'lucide-react';
 
 export default function Footer() {
     const firestore = useFirestore();
+    const { areServicesAvailable } = useUser();
+    
     // The query is only created if firestore is available.
-    const settingsDocRef = useMemoFirebase(() => (firestore ? doc(firestore, 'settings', 'footer_settings') : null), [firestore]);
+    const settingsDocRef = useMemoFirebase(() => (firestore && areServicesAvailable ? doc(firestore, 'settings', 'footer_settings') : null), [firestore, areServicesAvailable]);
     const { data: settings, isLoading } = useDoc<FooterSettings>(settingsDocRef);
 
     const defaultSettings = {

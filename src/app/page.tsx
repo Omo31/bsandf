@@ -17,15 +17,15 @@ import { useEffect, useState, useMemo } from 'react';
 export default function Home() {
   const flyerImage = placeholderImages.find(p => p.id === 'flyer-1');
   
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, areServicesAvailable } = useUser();
   const firestore = useFirestore();
 
   // Fetch homepage settings only when firestore is available
-  const settingsDocRef = useMemoFirebase(() => (firestore ? doc(firestore, 'settings', 'home_page') : null), [firestore]);
+  const settingsDocRef = useMemoFirebase(() => (firestore && areServicesAvailable ? doc(firestore, 'settings', 'home_page') : null), [firestore, areServicesAvailable]);
   const { data: settings, isLoading: isLoadingSettings } = useDoc<HomePageSettings>(settingsDocRef);
   
   // Fetch all products only when firestore is available
-  const productsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'products') : null), [firestore]);
+  const productsQuery = useMemoFirebase(() => (firestore && areServicesAvailable ? collection(firestore, 'products') : null), [firestore, areServicesAvailable]);
   const { data: allProducts, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
   // Determine featured products
@@ -43,15 +43,17 @@ export default function Home() {
     imageUrl: placeholderImages.find(p => p.id === 'hero-1')?.imageUrl
   }
 
-  const heroTitle = !isLoadingSettings && settings?.heroTitle ? settings.heroTitle : defaultHero.title;
-  const heroSubtitle = !isLoadingSettings && settings?.heroSubtitle ? settings.heroSubtitle : defaultHero.subtitle;
-  const heroImageUrl = !isLoadingSettings && settings?.heroImageUrl ? settings.heroImageUrl : defaultHero.imageUrl;
+  const isLoading = isLoadingSettings || areProductsLoading;
+
+  const heroTitle = !isLoading && settings?.heroTitle ? settings.heroTitle : defaultHero.title;
+  const heroSubtitle = !isLoading && settings?.heroSubtitle ? settings.heroSubtitle : defaultHero.subtitle;
+  const heroImageUrl = !isLoading && settings?.heroImageUrl ? settings.heroImageUrl : defaultHero.imageUrl;
 
   return (
     <div className="flex flex-col min-h-screen">
       <main className="flex-1">
         <section className="relative w-full h-[60vh] md:h-[80vh] bg-primary/10">
-          {isLoadingSettings && <Skeleton className="absolute inset-0" />}
+          {isLoading && <Skeleton className="absolute inset-0" />}
           {heroImageUrl && (
              <Image
                 src={heroImageUrl}
@@ -127,7 +129,7 @@ export default function Home() {
               Featured Products
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-              {areProductsLoading && [...Array(8)].map((_, i) => (
+              {isLoading && [...Array(8)].map((_, i) => (
                 <Card key={i}>
                   <CardContent className="p-0">
                     <Skeleton className="w-full aspect-[4/3]" />

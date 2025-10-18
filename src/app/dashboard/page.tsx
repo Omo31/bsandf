@@ -152,14 +152,14 @@ function UserSummary({ user, orders, isLoading } : { user: any, orders: WithId<O
 }
 
 export default function UserDashboardPage() {
-    const { user, isUserLoading } = useUser();
+    const { user, isUserLoading, areServicesAvailable } = useUser();
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
+        if (!user || !firestore || !areServicesAvailable) return null;
         // User fetches only their own orders, limited for summary view
         return query(collection(firestore, `users/${user.uid}/orders`), orderBy('orderDate', 'desc'), limit(5));
-    }, [user, firestore]);
+    }, [user, firestore, areServicesAvailable]);
     
     const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 

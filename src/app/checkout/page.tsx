@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
@@ -22,7 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 function CheckoutForm() {
   const router = useRouter();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, areServicesAvailable } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -30,13 +31,13 @@ function CheckoutForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   const cartItemsQuery = useMemoFirebase(
-    () => (user ? collection(firestore, `users/${user.uid}/cart_items`) : null),
-    [user, firestore]
+    () => (user && areServicesAvailable ? collection(firestore, `users/${user.uid}/cart_items`) : null),
+    [user, firestore, areServicesAvailable]
   );
   const { data: cartItems, isLoading: isCartLoading } = useCollection<CartItem>(cartItemsQuery);
 
   useEffect(() => {
-    if (user) {
+    if (user && areServicesAvailable) {
       const userDocRef = doc(firestore, 'users', user.uid);
       getDoc(userDocRef).then((docSnap) => {
         if (docSnap.exists()) {
@@ -45,7 +46,7 @@ function CheckoutForm() {
         }
       });
     }
-  }, [user, firestore]);
+  }, [user, firestore, areServicesAvailable]);
 
   const handleSubmitOrder = async () => {
     if (!user || !cartItems || cartItems.length === 0) {

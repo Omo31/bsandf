@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -66,12 +67,12 @@ function CartItemRow({ item }: { item: WithId<CartItem> }) {
 
 
 export default function CartPage() {
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, areServicesAvailable } = useUser();
   const firestore = useFirestore();
   
   const cartItemsQuery = useMemoFirebase(
-    () => (user ? collection(firestore, `users/${user.uid}/cart_items`) : null),
-    [user, firestore]
+    () => (user && areServicesAvailable ? collection(firestore, `users/${user.uid}/cart_items`) : null),
+    [user, firestore, areServicesAvailable]
   );
   const { data: cart, isLoading } = useCollection<CartItem>(cartItemsQuery);
 

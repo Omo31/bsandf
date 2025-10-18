@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -225,13 +226,13 @@ const HistoryTable = ({ orders, isLoading, statusFilter }: { orders: WithId<Orde
 
 
 export default function PurchaseHistoryPage() {
-  const { user } = useUser();
+  const { user, areServicesAvailable } = useUser();
   const firestore = useFirestore();
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !areServicesAvailable) return null;
     return query(collection(firestore, `users/${user.uid}/orders`));
-  }, [user, firestore]);
+  }, [user, firestore, areServicesAvailable]);
   
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 

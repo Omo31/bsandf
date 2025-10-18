@@ -7,6 +7,7 @@ import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { WhatsAppFAB } from '@/components/layout/whatsapp-fab';
+import { GlobalLoader } from '@/components/layout/global-loader';
 
 export const metadata: Metadata = {
   title: 'BeautifulSoup&Food',
@@ -27,12 +28,14 @@ export default function RootLayout({
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <FirebaseClientProvider>
-          <div className="relative flex min-h-screen flex-col">
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
-          <WhatsAppFAB />
+          <GlobalLoader>
+            <div className="relative flex min-h-screen flex-col">
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
+            <WhatsAppFAB />
+          </GlobalLoader>
           <Toaster />
         </FirebaseClientProvider>
       </body>
