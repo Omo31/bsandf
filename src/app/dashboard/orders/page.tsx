@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -314,13 +313,18 @@ function OrderTable({ orders, isLoading }: { orders: WithId<Order>[] | null; isL
 export default function OrderManagementPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const [canQuery, setCanQuery] = useState(false);
+
+  useEffect(() => {
+    if (firestore && user) {
+        setCanQuery(true);
+    }
+  }, [firestore, user]);
   
   const ordersQuery = useMemoFirebase(() => {
-    // Only construct the query if firestore is available.
-    // This prevents an invalid query from being created on initial render.
-    if (!firestore) return null;
+    if (!canQuery) return null;
     return query(collectionGroup(firestore, 'orders'));
-  }, [firestore]);
+  }, [canQuery, firestore]);
 
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
