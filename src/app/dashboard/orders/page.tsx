@@ -42,7 +42,7 @@ import {
   getDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { Order, User, WithId } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -312,23 +312,13 @@ function OrderTable({ orders, isLoading }: { orders: WithId<Order>[] | null; isL
 
 export default function OrderManagementPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
-  const [canQuery, setCanQuery] = useState(false);
-
-  useEffect(() => {
-    if (firestore && user) {
-        setCanQuery(true);
-    }
-  }, [firestore, user]);
   
   const ordersQuery = useMemoFirebase(() => {
-    if (!canQuery) return null;
+    if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'));
-  }, [canQuery, firestore]);
+  }, [firestore]);
 
-  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
-
-  const isLoading = isUserLoading || areOrdersLoading;
+  const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
   
   return (
     <div className="flex-1 space-y-4">
