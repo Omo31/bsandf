@@ -1,6 +1,7 @@
 
 
 
+
 export type Product = {
   id: string;
   name: string;
@@ -97,6 +98,7 @@ export type FooterSettings = {
     aboutUs: string;
     address: string;
     email: string;
+    whatsappNumber?: string;
     openingHours: string;
     facebookUrl: string;
     instagramUrl: string;

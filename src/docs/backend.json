@@ -383,6 +383,10 @@
           "type": "string",
           "description": "The company's contact email."
         },
+        "whatsappNumber": {
+            "type": "string",
+            "description": "The company's WhatsApp contact number."
+        },
         "openingHours": {
           "type": "string",
           "description": "The company's opening hours."
@@ -570,5 +574,3 @@
     "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features. The new security model is based on an 'owner' role. User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization for the user themselves, while the 'owner' role grants global access. A single `/settings` collection holds sitewide configuration documents like `home_page` and `footer_settings`. This separation simplifies security rules. The owner role is managed via a custom claim on the user's auth token, which is the most secure and efficient method. This design ensures that security rules can be written clearly and efficiently, promoting a more secure and scalable application."
   }
 }
-
-    

@@ -143,15 +143,27 @@ export default function FooterSettingsPage() {
                 rows={2}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email || ''}
-                onChange={handleInputChange}
-                placeholder="e.g., contact@bsfood.com"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email || ''}
+                  onChange={handleInputChange}
+                  placeholder="e.g., contact@bsfood.com"
+                />
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
+                <Input
+                  id="whatsappNumber"
+                  type="tel"
+                  value={formData.whatsappNumber || ''}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 2348012345678"
+                />
+              </div>
             </div>
              <div className="space-y-2">
               <Label htmlFor="openingHours">Opening Hours</Label>
@@ -212,5 +224,3 @@ export default function FooterSettingsPage() {
     </div>
   );
 }
-
-    

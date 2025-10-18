@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
@@ -5,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { WhatsAppFAB } from '@/components/layout/whatsapp-fab';
 
 export const metadata: Metadata = {
   title: 'BeautifulSoup&Food',
@@ -30,6 +32,7 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+          <WhatsAppFAB />
           <Toaster />
         </FirebaseClientProvider>
       </body>
