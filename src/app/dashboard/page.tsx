@@ -43,10 +43,11 @@ const getStatusVariant = (status: Order['status']) => {
 
 function UserSummary({ user, orders, isLoading } : { user: any, orders: WithId<Order>[] | null, isLoading: boolean }) {
     const recentOrder = useMemo(() => orders?.[0], [orders]);
+    const welcomeName = user?.firstName || user?.displayName?.split(' ')[0] || 'User';
 
     return (
         <div className="space-y-4">
-             <h2 className="text-3xl font-bold tracking-tight">Welcome, {user?.displayName?.split(' ')[0] || 'User'}!</h2>
+             <h2 className="text-3xl font-bold tracking-tight">Welcome, {welcomeName}!</h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -155,7 +156,7 @@ export default function UserDashboardPage() {
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
         // User fetches only their own orders, limited for summary view
         return query(collection(firestore, `users/${user.uid}/orders`), orderBy('orderDate', 'desc'), limit(5));
     }, [user, firestore]);
@@ -164,7 +165,7 @@ export default function UserDashboardPage() {
 
     const isLoading = isUserLoading || areOrdersLoading;
 
-    if (isLoading) {
+    if (isLoading && !user) {
         return (
             <div className="flex-1 space-y-4 p-8 pt-6">
                 <Skeleton className="h-9 w-1/3" />
