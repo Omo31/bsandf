@@ -17,8 +17,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Download, Users, MoreHorizontal, Eye, ShieldAlert } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { Download, Users, MoreHorizontal, Eye } from 'lucide-react';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,7 +30,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
 
 function UserTable({ users, isLoading }: { users: WithId<User>[] | null; isLoading: boolean }) {
     const router = useRouter();
@@ -119,18 +118,13 @@ function UserTable({ users, isLoading }: { users: WithId<User>[] | null; isLoadi
 
 export default function UserManagementPage() {
     const firestore = useFirestore();
-    const { user, isUserLoading } = useUser();
-
-    // The query to fetch all users is the source of the permission error.
-    // It is disabled here by passing `null` to useCollection.
+    
     const usersQuery = useMemoFirebase(
-        () => (null), // This is intentionally null to prevent the query from running
+        () => (firestore ? collection(firestore, 'users') : null),
         [firestore]
     );
 
-    const { data: users, isLoading: areUsersLoading } = useCollection<User>(usersQuery as any);
-
-    const isLoading = isUserLoading || areUsersLoading;
+    const { data: users, isLoading } = useCollection<User>(usersQuery);
 
     return (
         <div className="flex-1 space-y-4">
@@ -150,11 +144,7 @@ export default function UserManagementPage() {
             <CardDescription>A list of all the users in your application.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full min-h-[300px] border-2 border-dashed rounded-lg p-4">
-                    <ShieldAlert className="h-12 w-12 mb-4" />
-                    <p className="font-semibold">Feature Under Development</p>
-                    <p className="text-sm">The user list is temporarily disabled to prevent permission errors.</p>
-                </div>
+                <UserTable users={users} isLoading={isLoading} />
             </CardContent>
         </Card>
         </div>

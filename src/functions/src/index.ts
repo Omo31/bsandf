@@ -100,34 +100,6 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     // might query for users with a 'notification_recipient' flag, for example.
     console.log(`A new order #${orderId} was created by ${userName} and is pending review.`);
     
-    // The following code is commented out as there is no 'admin' role.
-    // If you re-implement roles, you can re-enable this.
-    /*
-    const adminRoles = await db.collection('users').where('role', '==', 'admin').get();
-    if (adminRoles.empty) {
-      console.log('No admins found to notify.');
-      return;
-    }
-
-    const batch = db.batch();
-    const notification = {
-      title: 'New Order for Review',
-      message: `${userName} placed a new order (#${orderId}) that needs your review.`,
-      link: `/dashboard/orders`,
-      isRead: false,
-      timestamp: FieldValue.serverTimestamp(),
-    };
-
-    adminRoles.docs.forEach(adminDoc => {
-      const adminId = adminDoc.id;
-      const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
-      batch.set(notificationRef, { ...notification, userId: adminId });
-    });
-
-    await batch.commit();
-    console.log(`Notified ${adminRoles.size} admins about new order ${orderId} for review.`);
-    */
-
   } catch (error) {
     console.error(`Error processing new order notification for ${orderId}:`, error);
   }
@@ -152,7 +124,6 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
   let shouldNotifyUser = false;
   
   // These notifications are sent to the user whose order it is.
-  // This logic is independent of admin roles.
   switch (afterData.status) {
     case 'Pending User Approval':
       shouldNotifyUser = true;
