@@ -96,19 +96,21 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       userError: userAuthState.userError,
     }), [firebaseApp, firestore, auth, userAuthState]);
 
-  return (
-    <FirebaseContext.Provider value={contextValue}>
-      <FirebaseErrorListener />
-      {userAuthState.isUserLoading ? (
+  if (userAuthState.isUserLoading) {
+      return (
          <div className="flex min-h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
                 <Logo className="h-12 w-12 text-primary animate-pulse" />
                 <p className="text-muted-foreground">Connecting to services...</p>
             </div>
         </div>
-      ) : (
-        children
-      )}
+      );
+  }
+
+  return (
+    <FirebaseContext.Provider value={contextValue}>
+      <FirebaseErrorListener />
+      {children}
     </FirebaseContext.Provider>
   );
 };
