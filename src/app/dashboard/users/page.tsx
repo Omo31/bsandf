@@ -121,8 +121,10 @@ export default function UserManagementPage() {
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
 
+    // TEMPORARILY disable user fetching to prevent permission errors during development.
+    // We will re-enable this with proper admin checks later.
     const usersQuery = useMemoFirebase(
-        () => (firestore ? collection(firestore, 'users') : null),
+        () => (false ? collection(firestore, 'users') : null),
         [firestore]
     );
 
@@ -148,7 +150,11 @@ export default function UserManagementPage() {
             <CardDescription>A list of all the users in your application.</CardDescription>
             </CardHeader>
             <CardContent>
-                <UserTable users={users as WithId<User>[] | null} isLoading={isLoading} />
+                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full min-h-[300px] border-2 border-dashed rounded-lg p-4">
+                    <ShieldAlert className="h-12 w-12 mb-4" />
+                    <p className="font-semibold">Feature Under Development</p>
+                    <p className="text-sm">The user list is temporarily disabled to prevent permission errors.</p>
+                </div>
             </CardContent>
         </Card>
         </div>
