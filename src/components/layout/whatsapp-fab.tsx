@@ -34,7 +34,7 @@ export function WhatsAppFAB() {
   const settingsDocRef = useMemoFirebase(() => (firestore && areServicesAvailable ? doc(firestore, 'settings', 'footer_settings') : null), [firestore, areServicesAvailable]);
   const { data: settings, isLoading } = useDoc<FooterSettings>(settingsDocRef);
 
-  if (isLoading) {
+  if (isLoading && areServicesAvailable) {
     return <Skeleton className="fixed bottom-6 right-6 h-14 w-14 rounded-full" />;
   }
 
