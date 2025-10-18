@@ -24,11 +24,6 @@
           "type": "string",
           "description": "Last name of the user."
         },
-        "role": {
-          "type": "string",
-          "description": "Role of the user (e.g., owner, user).",
-          "enum": ["owner", "user"]
-        },
         "shippingAddress": {
           "type": "string",
           "description": "The user's primary shipping address."
@@ -48,7 +43,6 @@
         "email",
         "firstName",
         "lastName",
-        "role",
         "createdAt"
       ]
     },
@@ -383,6 +377,10 @@
           "type": "string",
           "description": "The company's contact email."
         },
+        "whatsappNumber": {
+            "type": "string",
+            "description": "The company's WhatsApp contact number."
+        },
         "openingHours": {
           "type": "string",
           "description": "The company's opening hours."
@@ -425,7 +423,7 @@
           "schema": {
             "$ref": "#/entities/User"
           },
-          "description": "Stores user profiles, accessible by the user and owners.",
+          "description": "Stores user profiles.",
           "params": [
             {
               "name": "userId",
@@ -441,7 +439,7 @@
           "schema": {
             "$ref": "#/entities/Product"
           },
-          "description": "Stores product information, accessible for reading by all users, but writable only by owners.",
+          "description": "Stores product information.",
           "params": [
             {
               "name": "productId",
@@ -457,7 +455,7 @@
           "schema": {
             "$ref": "#/entities/Order"
           },
-          "description": "Stores orders placed by users. Accessible by the user and owners.",
+          "description": "Stores orders placed by users.",
           "params": [
             {
               "name": "userId",
@@ -477,7 +475,7 @@
           "schema": {
             "$ref": "#/entities/CartItem"
           },
-          "description": "Stores cart items for each user. Accessible only by the user and owners.",
+          "description": "Stores cart items for each user.",
           "params": [
             {
               "name": "userId",
@@ -497,7 +495,7 @@
           "schema": {
             "$ref": "#/entities/Flyer"
           },
-          "description": "Stores flyer information, accessible for reading by all users, but writable only by owners.",
+          "description": "Stores flyer information.",
           "params": [
             {
               "name": "flyerId",
@@ -513,7 +511,7 @@
           "schema": {
             "$ref": "#/entities/ServiceChecklistItem"
           },
-          "description": "Stores service checklist items for custom orders. Accessible by the user and owners.",
+          "description": "Stores service checklist items for custom orders.",
           "params": [
             {
               "name": "userId",
@@ -557,7 +555,7 @@
           "schema": {
             "$ref": "#/entities/HomePageSettings"
           },
-          "description": "Stores global application settings. Writable only by owners.",
+          "description": "Stores global application settings.",
           "params": [
             {
               "name": "settingId",
@@ -567,6 +565,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features. The new security model is based on an 'owner' role. User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization for the user themselves, while the 'owner' role grants global access. A single `/settings` collection holds sitewide configuration documents like `home_page` and `footer_settings`. This separation simplifies security rules. The owner role is managed via a custom claim on the user's auth token, which is the most secure and efficient method. This design ensures that security rules can be written clearly and efficiently, promoting a more secure and scalable application."
+    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features. User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization. A single `/settings` collection holds sitewide configuration documents like `home_page` and `footer_settings`. This separation simplifies security rules and data management. Roles have been removed to simplify the permission model for now."
   }
 }

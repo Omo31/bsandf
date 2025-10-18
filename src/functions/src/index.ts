@@ -10,14 +10,10 @@ const db = admin.firestore();
 
 /**
  * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
- * It also grants the 'owner' role to the first user or a specific hardcoded user.
  */
 export const createFirestoreUser = onUserCreate(async (event) => {
   const user = event.data;
   const { uid, email, displayName } = user;
-
-  // This is the specific UID for the user who needs owner access.
-  const designatedOwnerUid = "6ie9eCjQcpREwa0CmiE7TL7Hemz2";
 
   const userRef = db.collection('users').doc(uid);
 
@@ -26,35 +22,17 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
-    const listUsersResult = await admin.auth().listUsers(2);
-    
-    // The first user to sign up OR the designated user gets the owner role.
-    const isFirstUser = listUsersResult.users.length <= 1;
-    const isDesignatedOwner = uid === designatedOwnerUid;
-    const userRole = (isFirstUser || isDesignatedOwner) ? 'owner' : 'user';
-    
-    // Set custom claim for role-based access if the user is an owner.
-    if (userRole === 'owner') {
-      console.log(`Granting 'owner' role via custom claim to ${uid}.`);
-      await admin.auth().setCustomUserClaims(uid, { role: 'owner' });
-    }
-    
     await userRef.set({
         uid: uid,
         email: email || '',
         firstName: firstName,
         lastName: lastName,
-        role: userRole,
         shippingAddress: '',
         phoneNumber: '',
         createdAt: FieldValue.serverTimestamp(),
     });
     
-    // Re-fetch the user to ensure the claims are applied before logging completion.
-    if(userRole === 'owner') {
-        await admin.auth().getUser(uid);
-    }
-    console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
+    console.log(`Successfully created user document for ${uid}`);
 
   } catch (error) {
     console.error(`Error in createFirestoreUser for ${uid}:`, error);
@@ -96,7 +74,7 @@ export const updateInventoryOnOrderAccepted = onDocumentUpdated('users/{userId}/
 
 
 /**
- * Notifies all owners when a new order is created and requires review.
+ * Notifies all admins when a new order is created and requires review.
  */
 export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}', async (event) => {
   const orderId = event.params.orderId;
@@ -104,7 +82,7 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
   const orderData = event.data?.data();
 
   if (!orderData || orderData.status !== 'Pending Admin Review') {
-    console.log('Order does not require owner review notification.');
+    console.log('Order does not require admin review notification.');
     return;
   }
 
@@ -113,9 +91,11 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     const userData = userDoc.data();
     const userName = userData ? `${userData.firstName} ${userData.lastName}` : 'A customer';
 
-    const ownerRoles = await db.collection('users').where('role', '==', 'owner').get();
-    if (ownerRoles.empty) {
-      console.log('No owners found to notify.');
+    // This is a placeholder for how you might identify admins in the future.
+    // For now, it will not find any admins.
+    const adminRoles = await db.collection('users').where('is_admin', '==', true).get();
+    if (adminRoles.empty) {
+      console.log('No admins found to notify.');
       return;
     }
 
@@ -123,26 +103,26 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     const notification = {
       title: 'New Order for Review',
       message: `${userName} placed a new order (#${orderId}) that needs your review.`,
-      link: `/dashboard/orders`,
+      link: `/admin/orders`,
       isRead: false,
       timestamp: FieldValue.serverTimestamp(),
     };
 
-    ownerRoles.docs.forEach(ownerDoc => {
-      const ownerId = ownerDoc.id;
-      const notificationRef = db.collection('users').doc(ownerId).collection('notifications').doc();
-      batch.set(notificationRef, { ...notification, userId: ownerId });
+    adminRoles.docs.forEach(adminDoc => {
+      const adminId = adminDoc.id;
+      const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
+      batch.set(notificationRef, { ...notification, userId: adminId });
     });
 
     await batch.commit();
-    console.log(`Notified ${ownerRoles.size} owners about new order ${orderId} for review.`);
+    console.log(`Notified ${adminRoles.size} admins about new order ${orderId} for review.`);
   } catch (error) {
     console.error(`Error creating notifications for order ${orderId}:`, error);
   }
 });
 
 /**
- * Notifies a user when their order status is updated by an owner or by themselves.
+ * Notifies a user when their order status is updated by an admin or by themselves.
  */
 export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{orderId}', async (event) => {
   const orderId = event.params.orderId;
@@ -158,18 +138,21 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
   let message = `Your order status has changed to: ${afterData.status}.`;
   let link = '/dashboard/history';
   let shouldNotifyUser = false;
-  let shouldNotifyOwners = false;
+  let shouldNotifyAdmins = false;
 
+  // Determine the notification content and recipients based on the status change
   switch (afterData.status) {
     case 'Pending User Approval':
       shouldNotifyUser = true;
-      message = `An owner has reviewed your order. Please approve the final quote to proceed.`;
+      message = `An admin has reviewed your order. Please approve the final quote to proceed.`;
       break;
     case 'Accepted':
-       shouldNotifyOwners = true;
+       shouldNotifyAdmins = true;
+       // We don't notify the user here because they initiated the action.
        break;
     case 'Rejected':
-       shouldNotifyOwners = true;
+       shouldNotifyAdmins = true;
+       // We don't notify the user here.
        break;
     case 'Processing':
     case 'Shipped':
@@ -179,6 +162,7 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
   }
 
   try {
+    // Notify the user if required
     if (shouldNotifyUser) {
       const userNotification = {
         userId: userId,
@@ -193,33 +177,35 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       console.log(`Sent status update notification to user ${userId} for order ${orderId}.`);
     }
 
-    if (shouldNotifyOwners) {
+    // Notify admins if required
+    if (shouldNotifyAdmins) {
       const userDoc = await db.collection('users').doc(userId).get();
       const userName = userDoc.exists ? `${userDoc.data()?.firstName} ${userDoc.data()?.lastName}` : 'A customer';
       
-      const ownerRoles = await db.collection('users').where('role', '==', 'owner').get();
-      if (ownerRoles.empty) {
-        console.log('No owners found to notify.');
+      // This is a placeholder for how you might identify admins in the future.
+      const adminRoles = await db.collection('users').where('is_admin', '==', true).get();
+      if (adminRoles.empty) {
+        console.log('No admins found to notify.');
         return;
       }
 
       const batch = db.batch();
-      const ownerNotification = {
+      const adminNotification = {
         title: `Order #${orderId} ${afterData.status}`,
         message: `${userName} has ${afterData.status.toLowerCase()} their order.`,
-        link: `/dashboard/orders`,
+        link: `/admin/orders`,
         isRead: false,
         timestamp: FieldValue.serverTimestamp(),
       };
 
-      ownerRoles.docs.forEach(ownerDoc => {
-        const ownerId = ownerDoc.id;
-        const notificationRef = db.collection('users').doc(ownerId).collection('notifications').doc();
-        batch.set(notificationRef, { ...ownerNotification, userId: ownerId });
+      adminRoles.docs.forEach(adminDoc => {
+        const adminId = adminDoc.id;
+        const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
+        batch.set(notificationRef, { ...adminNotification, userId: adminId });
       });
 
       await batch.commit();
-      console.log(`Notified ${ownerRoles.size} owners about status change for order ${orderId}.`);
+      console.log(`Notified ${adminRoles.size} admins about status change for order ${orderId}.`);
     }
 
   } catch (error) {
