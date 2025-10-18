@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Eye, Loader2, Send } from 'lucide-react';
+import { MoreHorizontal, Eye, Loader2, Send, ShieldAlert } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +43,7 @@ import {
   getDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, User, WithId } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -201,7 +201,7 @@ function OrderDetailsDialog({ order }: { order: WithId<Order> }) {
   );
 }
 
-function OrderTable({ orders, isLoading }: { orders: WithId<Order>[] | null; isLoading: boolean }) {
+function OrderTable({ orders, isLoading, isOwner }: { orders: WithId<Order>[] | null; isLoading: boolean, isOwner: boolean }) {
   const firestore = useFirestore();
   const [customers, setCustomers] = useState<Record<string, User>>({});
 
@@ -250,8 +250,14 @@ function OrderTable({ orders, isLoading }: { orders: WithId<Order>[] | null; isL
       )
   }
 
-  if (!orders || orders.length === 0) {
-      return <div className="text-center p-8 text-muted-foreground">No orders found.</div>
+  if (!isOwner || !orders || orders.length === 0) {
+       return (
+          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full min-h-[300px] border-2 border-dashed rounded-lg p-4">
+              <ShieldAlert className="h-12 w-12 mb-4" />
+              <p className="font-semibold">{!isOwner ? "Access Denied" : "No Orders Found"}</p>
+              <p className="text-sm">{!isOwner ? "You do not have permission to view this page." : "No orders have been placed yet."}</p>
+          </div>
+       )
   }
 
   return (
@@ -307,13 +313,27 @@ function OrderTable({ orders, isLoading }: { orders: WithId<Order>[] | null; isL
 
 export default function OrderManagementPage() {
   const firestore = useFirestore();
-  const ordersQuery = useMemo(() => {
-    if (!firestore) return null;
-    // Query all orders across all users.
-    return query(collectionGroup(firestore, 'orders'));
-  }, [firestore]);
+  const [isOwner, setIsOwner] = useState(false);
+  const { user, isUserLoading } = useUser();
 
-  const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
+  useEffect(() => {
+    if (user) {
+      user.getIdTokenResult().then(idTokenResult => {
+        setIsOwner(idTokenResult.claims.role === 'owner');
+      });
+    } else {
+      setIsOwner(false);
+    }
+  }, [user]);
+  
+  const ordersQuery = useMemo(() => {
+    if (!firestore || !isOwner) return null;
+    return query(collectionGroup(firestore, 'orders'));
+  }, [firestore, isOwner]);
+
+  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const isLoading = isUserLoading || (isOwner && areOrdersLoading);
 
   return (
     <div className="flex-1 space-y-4">
@@ -325,9 +345,11 @@ export default function OrderManagementPage() {
       </div>
       <Card>
         <CardContent className="p-0">
-          <OrderTable orders={orders} isLoading={isLoading} />
+          <OrderTable orders={orders} isLoading={isLoading} isOwner={isOwner} />
         </CardContent>
       </Card>
     </div>
   );
 }
+
+    
