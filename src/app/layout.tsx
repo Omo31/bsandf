@@ -27,12 +27,12 @@ export default function RootLayout({
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <FirebaseClientProvider>
-            <div className="relative flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
-            <WhatsAppFAB />
+          <div className="relative flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+          <WhatsAppFAB />
           <Toaster />
         </FirebaseClientProvider>
       </body>

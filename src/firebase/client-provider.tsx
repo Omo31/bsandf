@@ -4,7 +4,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
-import { GlobalLoader } from '@/components/layout/global-loader';
+import { Logo } from '@/components/icons';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -22,9 +22,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
       auth={firebaseServices.auth}
       firestore={firebaseServices.firestore}
     >
-      <GlobalLoader>
-        {children}
-      </GlobalLoader>
+      {children}
     </FirebaseProvider>
   );
 }
