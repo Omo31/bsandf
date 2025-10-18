@@ -37,22 +37,13 @@ export function WhatsAppFAB() {
   if (isLoading && areServicesAvailable) {
     return <Skeleton className="fixed bottom-6 right-6 h-14 w-14 rounded-full" />;
   }
-
-  // If services aren't ready, or no settings are found, don't render anything yet
-  if (!areServicesAvailable || !settings) {
-    return null;
-  }
-
-  const configuredNumber = settings?.whatsappNumber;
-
-  // If the number is not configured in the admin panel, don't render the button.
-  // This prevents the button from appearing when it's not wanted.
-  if (!configuredNumber) {
+  
+  if (!settings || !settings.whatsappNumber) {
     return null;
   }
 
   // Basic validation/sanitization for the phone number
-  const phoneNumber = configuredNumber.replace(/\D/g, '');
+  const phoneNumber = settings.whatsappNumber.replace(/\D/g, '');
 
   // If after sanitization the number is empty, don't render.
   if (!phoneNumber) {

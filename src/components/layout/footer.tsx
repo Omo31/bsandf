@@ -29,7 +29,7 @@ export default function Footer() {
         productVideoId: "dQw4w9WgXcQ" // A classic placeholder
     };
 
-    const content = isLoading || !settings ? defaultSettings : { ...defaultSettings, ...settings };
+    const content = !settings ? defaultSettings : { ...defaultSettings, ...settings };
     const showLoading = isLoading && areServicesAvailable;
 
 
