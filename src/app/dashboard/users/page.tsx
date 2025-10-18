@@ -14,6 +14,27 @@ import { useUser } from '@/firebase';
 import { useState, useEffect } from 'react';
 
 export default function UserManagementPage() {
+  const { user } = useUser();
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      user.getIdTokenResult().then(idTokenResult => {
+        setIsOwner(idTokenResult.claims.role === 'owner');
+      });
+    }
+  }, [user]);
+
+  if (!isOwner) {
+    // This can be a simple message or a more complex "Access Denied" component
+    return (
+      <div className="flex-1 space-y-4">
+        <h2 className="text-3xl font-bold tracking-tight">Access Denied</h2>
+        <p className="text-muted-foreground">You do not have permission to view this page.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 space-y-4">
       <div className="flex items-center justify-between space-y-2">

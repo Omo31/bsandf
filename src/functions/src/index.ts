@@ -10,11 +10,14 @@ const db = admin.firestore();
 
 /**
  * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
- * It also grants the 'owner' role to the first user.
+ * It also grants the 'owner' role to the first user or a specific hardcoded user.
  */
 export const createFirestoreUser = onUserCreate(async (event) => {
   const user = event.data;
   const { uid, email, displayName } = user;
+
+  // This is the specific UID for the user who needs owner access.
+  const designatedOwnerUid = "6ie9eCjQcpREwa0CmiE7TL7Hemz2";
 
   const userRef = db.collection('users').doc(uid);
 
@@ -23,17 +26,16 @@ export const createFirestoreUser = onUserCreate(async (event) => {
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
   try {
-    // Check if any other users exist in Firebase Authentication.
-    // Listing 2 users is a quick way to see if there's more than just the one being created.
     const listUsersResult = await admin.auth().listUsers(2);
     
-    // If only one user exists (the one just created), they become the owner.
+    // The first user to sign up OR the designated user gets the owner role.
     const isFirstUser = listUsersResult.users.length <= 1;
-    const userRole = isFirstUser ? 'owner' : 'user';
+    const isDesignatedOwner = uid === designatedOwnerUid;
+    const userRole = (isFirstUser || isDesignatedOwner) ? 'owner' : 'user';
     
-    // Set custom claim for role-based access.
-    if (isFirstUser) {
-      console.log(`First user detected. Granting 'owner' role via custom claim to ${uid}.`);
+    // Set custom claim for role-based access if the user is an owner.
+    if (userRole === 'owner') {
+      console.log(`Granting 'owner' role via custom claim to ${uid}.`);
       await admin.auth().setCustomUserClaims(uid, { role: 'owner' });
     }
     
@@ -49,7 +51,7 @@ export const createFirestoreUser = onUserCreate(async (event) => {
     });
     
     // Re-fetch the user to ensure the claims are applied before logging completion.
-    if(isFirstUser) {
+    if(userRole === 'owner') {
         await admin.auth().getUser(uid);
     }
     console.log(`Successfully created user document for ${uid} with role: ${userRole}`);
@@ -67,7 +69,6 @@ export const updateInventoryOnOrderAccepted = onDocumentUpdated('users/{userId}/
     const beforeData = event.data?.before.data();
     const afterData = event.data?.after.data();
 
-    // Check if the status was changed to 'Accepted'
     if (beforeData?.status !== 'Accepted' && afterData?.status === 'Accepted') {
         const items = afterData.items;
         if (!items || !Array.isArray(items)) {
