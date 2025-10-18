@@ -201,7 +201,7 @@ function OrderDetailsDialog({ order }: { order: WithId<Order> }) {
   );
 }
 
-function OrderTable({ orders, isLoading, isOwner }: { orders: WithId<Order>[] | null; isLoading: boolean, isOwner: boolean }) {
+function OrderTable({ orders, isLoading }: { orders: WithId<Order>[] | null; isLoading: boolean }) {
   const firestore = useFirestore();
   const [customers, setCustomers] = useState<Record<string, User>>({});
 
@@ -250,12 +250,12 @@ function OrderTable({ orders, isLoading, isOwner }: { orders: WithId<Order>[] | 
       )
   }
 
-  if (!isOwner || !orders || orders.length === 0) {
+  if (!orders || orders.length === 0) {
        return (
           <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full min-h-[300px] border-2 border-dashed rounded-lg p-4">
               <ShieldAlert className="h-12 w-12 mb-4" />
-              <p className="font-semibold">{!isOwner ? "Access Denied" : "No Orders Found"}</p>
-              <p className="text-sm">{!isOwner ? "You do not have permission to view this page." : "No orders have been placed yet."}</p>
+              <p className="font-semibold">No Orders Found</p>
+              <p className="text-sm">No orders have been placed yet.</p>
           </div>
        )
   }
@@ -313,27 +313,16 @@ function OrderTable({ orders, isLoading, isOwner }: { orders: WithId<Order>[] | 
 
 export default function OrderManagementPage() {
   const firestore = useFirestore();
-  const [isOwner, setIsOwner] = useState(false);
   const { user, isUserLoading } = useUser();
-
-  useEffect(() => {
-    if (user) {
-      user.getIdTokenResult().then(idTokenResult => {
-        setIsOwner(idTokenResult.claims.role === 'owner');
-      });
-    } else {
-      setIsOwner(false);
-    }
-  }, [user]);
   
   const ordersQuery = useMemo(() => {
-    if (!firestore || !isOwner) return null;
+    if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'));
-  }, [firestore, isOwner]);
+  }, [firestore]);
 
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
-  const isLoading = isUserLoading || (isOwner && areOrdersLoading);
+  const isLoading = isUserLoading || areOrdersLoading;
 
   return (
     <div className="flex-1 space-y-4">
@@ -345,11 +334,9 @@ export default function OrderManagementPage() {
       </div>
       <Card>
         <CardContent className="p-0">
-          <OrderTable orders={orders} isLoading={isLoading} isOwner={isOwner} />
+          <OrderTable orders={orders} isLoading={isLoading} />
         </CardContent>
       </Card>
     </div>
   );
 }
-
-    
