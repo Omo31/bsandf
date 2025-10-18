@@ -24,9 +24,9 @@ interface UserAuthState {
 // Combined state for the Firebase context
 export interface FirebaseContextState {
   areServicesAvailable: boolean; // True if core services (app, firestore, auth instance) are provided
-  firebaseApp: FirebaseApp | null;
-  firestore: Firestore | null;
-  auth: Auth | null; // The Auth service instance
+  firebaseApp: FirebaseApp;
+  firestore: Firestore;
+  auth: Auth; // The Auth service instance
   // User authentication state
   user: User | null;
   isUserLoading: boolean; // True during initial auth check
@@ -71,21 +71,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
-    if (!auth) { // If no Auth service instance, cannot determine user state
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
-      return;
-    }
-
-    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
-
-    // Use onIdTokenChanged to get the latest claims without forcing a refresh
     const unsubscribe = onIdTokenChanged(
       auth,
-      async (firebaseUser) => { // Auth state determined
-        if (firebaseUser) {
-           // This line is optional but ensures claims are fresh on first load
-          await firebaseUser.getIdToken(true);
-        }
+      (firebaseUser) => { // Auth state determined
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
       },
       (error) => { // Auth listener error
@@ -97,18 +85,15 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   }, [auth]); // Depends on the auth instance
 
   // Memoize the context value
-  const contextValue = useMemo((): FirebaseContextState => {
-    const servicesAvailable = !!(firebaseApp && firestore && auth && !userAuthState.isUserLoading);
-    return {
-      areServicesAvailable: servicesAvailable,
-      firebaseApp: servicesAvailable ? firebaseApp : null,
-      firestore: servicesAvailable ? firestore : null,
-      auth: servicesAvailable ? auth : null,
+  const contextValue = useMemo((): FirebaseContextState => ({
+      areServicesAvailable: !userAuthState.isUserLoading,
+      firebaseApp: firebaseApp,
+      firestore: firestore,
+      auth: auth,
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
-    };
-  }, [firebaseApp, firestore, auth, userAuthState]);
+    }), [firebaseApp, firestore, auth, userAuthState]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -127,10 +112,6 @@ export const useFirebase = (): FirebaseServicesAndUser => {
 
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
-  }
-
-  if (!context.firebaseApp || !context.firestore || !context.auth) {
-    throw new Error('Firebase core services not available. Check FirebaseProvider props.');
   }
 
   return {
