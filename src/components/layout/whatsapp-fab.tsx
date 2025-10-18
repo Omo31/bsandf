@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
@@ -37,13 +36,21 @@ export function WhatsAppFAB() {
     return <Skeleton className="fixed bottom-6 right-6 h-14 w-14 rounded-full" />;
   }
 
-  if (!settings?.whatsappNumber) {
+  const configuredNumber = settings?.whatsappNumber;
+
+  // If the number is not configured in the admin panel, don't render the button.
+  // This prevents the button from appearing when it's not wanted.
+  if (!configuredNumber) {
     return null;
   }
 
   // Basic validation/sanitization for the phone number
-  const phoneNumber = settings.whatsappNumber.replace(/\D/g, '');
-  if (!phoneNumber) return null;
+  const phoneNumber = configuredNumber.replace(/\D/g, '');
+
+  // If after sanitization the number is empty, don't render.
+  if (!phoneNumber) {
+    return null;
+  }
 
   const whatsappLink = `https://wa.me/${phoneNumber}`;
 
@@ -55,7 +62,7 @@ export function WhatsAppFAB() {
       className={cn(
         'fixed bottom-6 right-6 h-14 w-14 rounded-full bg-[#25D366] text-white',
         'flex items-center justify-center shadow-lg',
-        'transition-transform hover:scale-110 active:scale-100'
+        'transition-transform hover:scale-110 active:scale-100 z-50'
       )}
       aria-label="Chat on WhatsApp"
     >
