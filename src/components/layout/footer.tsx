@@ -14,7 +14,7 @@ export default function Footer() {
     const { areServicesAvailable } = useUser();
     
     // The query is only created if firestore and services are available.
-    const settingsDocRef = useMemoFirebase(() => (areServicesAvailable ? doc(firestore, 'settings', 'footer_settings') : null), [firestore, areServicesAvailable]);
+    const settingsDocRef = useMemoFirebase(() => (areServicesAvailable && firestore ? doc(firestore, 'settings', 'footer_settings') : null), [firestore, areServicesAvailable]);
     const { data: settings, isLoading } = useDoc<FooterSettings>(settingsDocRef);
 
     const defaultSettings = {
