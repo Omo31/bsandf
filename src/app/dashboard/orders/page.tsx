@@ -128,7 +128,7 @@ function OrderDetailsDialog({ order }: { order: WithId<Order> }) {
       </DropdownMenuItem>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Order Details ({order.id})</DialogTitle>
+          <DialogTitle>Order Details ({order.id.substring(0,8)}...)</DialogTitle>
           <DialogDescription>
             Review the order, set the shipping fee, and submit the quote to the customer.
           </DialogDescription>
@@ -309,6 +309,7 @@ export default function OrderManagementPage() {
   const firestore = useFirestore();
   const ordersQuery = useMemo(() => {
     if (!firestore) return null;
+    // Query all orders across all users.
     return query(collectionGroup(firestore, 'orders'));
   }, [firestore]);
 

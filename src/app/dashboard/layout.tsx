@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, User, ListOrdered, Bell, Heart, BarChart, Users, ShoppingCart, Settings, Wand2, LayoutDashboard, ShieldCheck } from 'lucide-react';
+import { Home, User, ListOrdered, Bell, Heart, BarChart, Users, ShoppingCart, Settings, Wand2, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
 import {

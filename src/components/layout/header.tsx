@@ -14,7 +14,6 @@ import {
   LogOut,
   Menu,
   Bell,
-  ShieldCheck
 } from 'lucide-react';
 import { Logo } from '@/components/icons';
 import {
@@ -28,7 +27,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
 import { useUser, useAuth } from '@/firebase';
-import { useAdmin } from '@/hooks/use-admin';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -42,7 +40,6 @@ export default function Header() {
   const [isClient, setIsClient] = useState(false);
   
   const { user, isUserLoading } = useUser();
-  const { isAdmin } = useAdmin();
   const auth = useAuth();
   
   useEffect(() => {

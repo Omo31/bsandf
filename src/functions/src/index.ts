@@ -103,7 +103,7 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
   const orderData = event.data?.data();
 
   if (!orderData || orderData.status !== 'Pending Admin Review') {
-    console.log('Order does not require admin review notification.');
+    console.log('Order does not require owner review notification.');
     return;
   }
 
@@ -122,15 +122,15 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     const notification = {
       title: 'New Order for Review',
       message: `${userName} placed a new order (#${orderId}) that needs your review.`,
-      link: `/admin/orders`,
+      link: `/dashboard/orders`,
       isRead: false,
       timestamp: FieldValue.serverTimestamp(),
     };
 
-    ownerRoles.docs.forEach(adminDoc => {
-      const adminId = adminDoc.id;
-      const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
-      batch.set(notificationRef, { ...notification, userId: adminId });
+    ownerRoles.docs.forEach(ownerDoc => {
+      const ownerId = ownerDoc.id;
+      const notificationRef = db.collection('users').doc(ownerId).collection('notifications').doc();
+      batch.set(notificationRef, { ...notification, userId: ownerId });
     });
 
     await batch.commit();
@@ -141,7 +141,7 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
 });
 
 /**
- * Notifies a user when their order status is updated by an admin or by themselves.
+ * Notifies a user when their order status is updated by an owner or by themselves.
  */
 export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{orderId}', async (event) => {
   const orderId = event.params.orderId;
@@ -157,18 +157,18 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
   let message = `Your order status has changed to: ${afterData.status}.`;
   let link = '/dashboard/history';
   let shouldNotifyUser = false;
-  let shouldNotifyAdmins = false;
+  let shouldNotifyOwners = false;
 
   switch (afterData.status) {
     case 'Pending User Approval':
       shouldNotifyUser = true;
-      message = `An admin has reviewed your order. Please approve the final quote to proceed.`;
+      message = `An owner has reviewed your order. Please approve the final quote to proceed.`;
       break;
     case 'Accepted':
-       shouldNotifyAdmins = true;
+       shouldNotifyOwners = true;
        break;
     case 'Rejected':
-       shouldNotifyAdmins = true;
+       shouldNotifyOwners = true;
        break;
     case 'Processing':
     case 'Shipped':
@@ -192,7 +192,7 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       console.log(`Sent status update notification to user ${userId} for order ${orderId}.`);
     }
 
-    if (shouldNotifyAdmins) {
+    if (shouldNotifyOwners) {
       const userDoc = await db.collection('users').doc(userId).get();
       const userName = userDoc.exists ? `${userDoc.data()?.firstName} ${userDoc.data()?.lastName}` : 'A customer';
       
@@ -203,18 +203,18 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       }
 
       const batch = db.batch();
-      const adminNotification = {
+      const ownerNotification = {
         title: `Order #${orderId} ${afterData.status}`,
         message: `${userName} has ${afterData.status.toLowerCase()} their order.`,
-        link: `/admin/orders`,
+        link: `/dashboard/orders`,
         isRead: false,
         timestamp: FieldValue.serverTimestamp(),
       };
 
-      ownerRoles.docs.forEach(adminDoc => {
-        const adminId = adminDoc.id;
-        const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
-        batch.set(notificationRef, { ...adminNotification, userId: adminId });
+      ownerRoles.docs.forEach(ownerDoc => {
+        const ownerId = ownerDoc.id;
+        const notificationRef = db.collection('users').doc(ownerId).collection('notifications').doc();
+        batch.set(notificationRef, { ...ownerNotification, userId: ownerId });
       });
 
       await batch.commit();
