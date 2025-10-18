@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -19,12 +20,12 @@ export default function Home() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  // Fetch homepage settings
-  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'home_page'), [firestore]);
+  // Fetch homepage settings only when firestore is available
+  const settingsDocRef = useMemoFirebase(() => (firestore ? doc(firestore, 'settings', 'home_page') : null), [firestore]);
   const { data: settings, isLoading: isLoadingSettings } = useDoc<HomePageSettings>(settingsDocRef);
   
-  // Fetch all products
-  const productsQuery = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
+  // Fetch all products only when firestore is available
+  const productsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'products') : null), [firestore]);
   const { data: allProducts, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
   // Determine featured products
@@ -42,9 +43,9 @@ export default function Home() {
     imageUrl: placeholderImages.find(p => p.id === 'hero-1')?.imageUrl
   }
 
-  const heroTitle = settings?.heroTitle || defaultHero.title;
-  const heroSubtitle = settings?.heroSubtitle || defaultHero.subtitle;
-  const heroImageUrl = settings?.heroImageUrl || defaultHero.imageUrl;
+  const heroTitle = !isLoadingSettings && settings?.heroTitle ? settings.heroTitle : defaultHero.title;
+  const heroSubtitle = !isLoadingSettings && settings?.heroSubtitle ? settings.heroSubtitle : defaultHero.subtitle;
+  const heroImageUrl = !isLoadingSettings && settings?.heroImageUrl ? settings.heroImageUrl : defaultHero.imageUrl;
 
   return (
     <div className="flex flex-col min-h-screen">

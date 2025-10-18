@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
@@ -29,7 +30,7 @@ function WhatsAppIcon(props: SVGProps<SVGSVGElement>) {
 
 export function WhatsAppFAB() {
   const firestore = useFirestore();
-  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'footer_settings'), [firestore]);
+  const settingsDocRef = useMemoFirebase(() => (firestore ? doc(firestore, 'settings', 'footer_settings') : null), [firestore]);
   const { data: settings, isLoading } = useDoc<FooterSettings>(settingsDocRef);
 
   if (isLoading) {

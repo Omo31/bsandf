@@ -11,7 +11,8 @@ import { Youtube } from 'lucide-react';
 
 export default function Footer() {
     const firestore = useFirestore();
-    const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'footer_settings'), [firestore]);
+    // The query is only created if firestore is available.
+    const settingsDocRef = useMemoFirebase(() => (firestore ? doc(firestore, 'settings', 'footer_settings') : null), [firestore]);
     const { data: settings, isLoading } = useDoc<FooterSettings>(settingsDocRef);
 
     const defaultSettings = {
@@ -26,7 +27,7 @@ export default function Footer() {
         productVideoId: "dQw4w9WgXcQ" // A classic placeholder
     };
 
-    const content = isLoading ? defaultSettings : { ...defaultSettings, ...settings };
+    const content = isLoading || !settings ? defaultSettings : { ...defaultSettings, ...settings };
 
 
   return (
@@ -93,5 +94,3 @@ export default function Footer() {
     </footer>
   );
 }
-
-    
