@@ -1,4 +1,5 @@
 
+
 'use server';
 import * as admin from 'firebase-admin';
 import { onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
@@ -10,64 +11,30 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * Sets the admin custom claim for the first user who signs up.
+ * Creates a user document in Firestore whenever a new user signs up.
+ * This function is triggered by the onUserCreate event from Firebase Authentication.
  */
-export const setAdminClaimOnFirstUser = onUserCreate(async (event) => {
+export const createUserDocument = onUserCreate(async (event) => {
   const user = event.data;
-  const { uid } = user;
+  const { uid, email, displayName } = user;
 
-  try {
-    const userCountSnapshot = await db.collection('users').limit(2).get();
-    
-    // If there are no existing user documents, this is the first user.
-    if (userCountSnapshot.empty) {
-      console.log(`First user detected. Granting admin custom claim to ${uid}.`);
-      await admin.auth().setCustomUserClaims(uid, { admin: true });
-      // Also update the role in their future Firestore doc
-      const userRef = db.collection('users').doc(uid);
-      await userRef.set({ role: 'admin' }, { merge: true });
-      console.log(`Custom claim and role set for first user ${uid}.`);
-    }
-  } catch (error) {
-    console.error(`Error in setAdminClaimOnFirstUser for ${uid}:`, error);
-  }
-});
-
-
-/**
- * Callable function to initialize a user's document in Firestore.
- * Triggered from the client-side after account creation.
- */
-export const initializeUser = onCall(async (request) => {
-  // Check if the user is authenticated.
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'The function must be called while authenticated.');
-  }
-
-  const { email, firstName, lastName } = request.data;
-  const { uid } = request.auth;
-
-  if (!firstName || !lastName || !email) {
-    throw new HttpsError('invalid-argument', 'The function must be called with firstName, lastName, and email arguments.');
-  }
+  // Parse displayName to get first and last names
+  const nameParts = displayName?.split(' ') || [];
+  const firstName = nameParts[0] || 'New';
+  const lastName = nameParts.slice(1).join(' ') || 'User';
 
   const userRef = db.collection('users').doc(uid);
-
   try {
     await userRef.set({
       uid,
       email,
       firstName,
       lastName,
-      role: 'user', // Default role is 'user'
       createdAt: FieldValue.serverTimestamp(),
-    }, { merge: true }); // Use merge to avoid overwriting the role if set by onUserCreate
-
+    });
     console.log(`Successfully created user document for ${uid}.`);
-    return { success: true, message: `User ${uid} initialized.` };
   } catch (error) {
     console.error(`Error creating user document for ${uid}:`, error);
-    throw new HttpsError('internal', 'Could not create user document.');
   }
 });
 
@@ -93,7 +60,7 @@ export const updateInventoryOnOrderAccepted = onDocumentUpdated('users/{userId}/
             if (item.productId && item.quantity > 0) {
                 const productRef = db.collection('products').doc(item.productId);
                 // Decrement the inventory count
-                batch.update(productRef, { inventory: FieldValue.increment(-item.quantity) });
+                batch.update(productRef, { stock: FieldValue.increment(-item.quantity) });
             }
         });
 
@@ -125,36 +92,18 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     const userData = userDoc.data();
     const userName = userData ? `${userData.firstName} ${userData.lastName}` : 'A customer';
 
-    const adminRoles = await db.collection('users').where('role', '==', 'admin').get();
-    if (adminRoles.empty) {
-      console.log('No admins found to notify.');
-      return;
-    }
-
-    const batch = db.batch();
-    const notification = {
-      title: 'New Order for Review',
-      message: `${userName} placed a new order (#${orderId}) that needs your review.`,
-      link: `/admin/orders`,
-      isRead: false,
-      timestamp: FieldValue.serverTimestamp(),
-    };
-
-    adminRoles.docs.forEach(adminDoc => {
-      const adminId = adminDoc.id;
-      const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
-      batch.set(notificationRef, { ...notification, userId: adminId });
-    });
-
-    await batch.commit();
-    console.log(`Notified ${adminRoles.size} admins about new order ${orderId} for review.`);
+    // This is now an open system, but we might want to notify specific users later.
+    // For now, let's log that a notification would be created. A real implementation
+    // might query for users with a 'notification_recipient' flag, for example.
+    console.log(`A new order #${orderId} was created by ${userName} and is pending review.`);
+    
   } catch (error) {
-    console.error(`Error creating notifications for order ${orderId}:`, error);
+    console.error(`Error processing new order notification for ${orderId}:`, error);
   }
 });
 
 /**
- * Notifies a user when their order status is updated by an admin or by themselves.
+ * Notifies a user when their order status is updated.
  */
 export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{orderId}', async (event) => {
   const orderId = event.params.orderId;
@@ -170,31 +119,25 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
   let message = `Your order status has changed to: ${afterData.status}.`;
   let link = '/dashboard/history';
   let shouldNotifyUser = false;
-  let shouldNotifyAdmins = false;
-
-  // Determine the notification content and recipients based on the status change
+  
+  // These notifications are sent to the user whose order it is.
   switch (afterData.status) {
     case 'Pending User Approval':
       shouldNotifyUser = true;
       message = `An admin has reviewed your order. Please approve the final quote to proceed.`;
       break;
-    case 'Accepted':
-       shouldNotifyAdmins = true;
-       // We don't notify the user here because they initiated the action.
-       break;
-    case 'Rejected':
-       shouldNotifyAdmins = true;
-       // We don't notify the user here.
-       break;
     case 'Processing':
     case 'Shipped':
     case 'Canceled':
       shouldNotifyUser = true;
       break;
+    // We don't notify the user for 'Accepted' or 'Rejected' because they initiated that action.
+    case 'Accepted':
+    case 'Rejected':
+       break;
   }
 
   try {
-    // Notify the user if required
     if (shouldNotifyUser) {
       const userNotification = {
         userId: userId,
@@ -209,39 +152,8 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       console.log(`Sent status update notification to user ${userId} for order ${orderId}.`);
     }
 
-    // Notify admins if required
-    if (shouldNotifyAdmins) {
-      const userDoc = await db.collection('users').doc(userId).get();
-      const userName = userDoc.exists ? `${userDoc.data()?.firstName} ${userDoc.data()?.lastName}` : 'A customer';
-      
-      const adminRoles = await db.collection('users').where('role', '==', 'admin').get();
-      if (adminRoles.empty) {
-        console.log('No admins found to notify.');
-        return;
-      }
-
-      const batch = db.batch();
-      const adminNotification = {
-        title: `Order #${orderId} ${afterData.status}`,
-        message: `${userName} has ${afterData.status.toLowerCase()} their order.`,
-        link: `/admin/orders`,
-        isRead: false,
-        timestamp: FieldValue.serverTimestamp(),
-      };
-
-      adminRoles.docs.forEach(adminDoc => {
-        const adminId = adminDoc.id;
-        const notificationRef = db.collection('users').doc(adminId).collection('notifications').doc();
-        batch.set(notificationRef, { ...adminNotification, userId: adminId });
-      });
-
-      await batch.commit();
-      console.log(`Notified ${adminRoles.size} admins about status change for order ${orderId}.`);
-    }
-
   } catch (error) {
     console.error('Error sending order status notification:', error);
   }
 });
-
     
