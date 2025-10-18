@@ -35,7 +35,8 @@ import {
   SidebarTrigger,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -61,16 +62,33 @@ const adminNavLinks = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useUser();
+  const firestore = useFirestore();
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(true);
+  const [shouldShowAdminPanel, setShouldShowAdminPanel] = useState(false);
+  
+  const adminsQuery = useMemoFirebase(() => query(collection(firestore, 'users'), where('role', '==', 'admin')), [firestore]);
+  const { data: admins, isLoading: loadingAdmins } = useCollection(adminsQuery as any);
 
   useEffect(() => {
     if (user) {
         user.getIdTokenResult().then(idTokenResult => {
-            setIsAdmin(!!idTokenResult.claims.admin);
+            const userIsAdmin = !!idTokenResult.claims.admin;
+            setIsAdmin(userIsAdmin);
+            
+            // Show admin panel if user is admin OR if there are no admins in the system yet
+            if (userIsAdmin || (!loadingAdmins && admins && admins.length === 0)) {
+                setShouldShowAdminPanel(true);
+            } else {
+                setShouldShowAdminPanel(false);
+            }
         });
+    } else {
+      // Not logged in, don't show admin panel
+      setShouldShowAdminPanel(false);
     }
-  }, [user]);
+  }, [user, admins, loadingAdmins]);
 
   const getActiveTab = (linkHref: string) => {
     if (linkHref === '/dashboard') {
@@ -102,7 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </SidebarMenu>
 
-          {isAdmin && (
+          {shouldShowAdminPanel && (
             <>
               <SidebarSeparator />
               <Collapsible open={isAdminOpen} onOpenChange={setIsAdminOpen} className="w-full">
@@ -156,5 +174,3 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </SidebarProvider>
   );
 }
-
-    
