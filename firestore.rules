@@ -1,186 +1,204 @@
 /**
- * @fileoverview Firestore Security Rules for Prototyping.
+ * @fileoverview Firestore Security Rules for BeautifulSoup&Food.
  *
  * Core Philosophy:
- * This ruleset enforces a role-based access control model, with a focus on
- * isolating user data and restricting administrative privileges.
+ * This ruleset enforces a user-ownership model for user-specific data
+ * (e.g., profiles, orders, cart items, notifications). Globally readable
+ * data (e.g., products, flyers, home page settings) is also supported,
+ * but write access to these collections is restricted.
  *
  * Data Structure:
- * - User-specific data (orders, cart items, notifications) is stored under `/users/{userId}`.
- * - Products and Flyers are stored in top-level collections (`/products`, `/flyers`).
- * - Global settings are stored in the `/settings` collection.
+ * - /users/{userId}: Stores user profiles and serves as the root for
+ *   user-specific data.
+ * - /products/{productId}: Stores product information, publicly readable.
+ * - /flyers/{flyerId}: Stores flyer/advertisement information, publicly
+ *   readable.
+ * - /settings/{settingId}: Stores global settings, such as home page
+ *   configuration.
  *
  * Key Security Decisions:
- * - Only authenticated users can access their own data under their respective `/users/{userId}` path.
- * - The `admin` role (checked via custom claim) is required for write access to products, flyers, and settings.
- * - Public read access is granted to the `/products` and `/flyers` collections.
- * - User listing is implicitly denied (no rule provided, therefore impossible).
+ * - Users can only access their own data under /users/{userId}.
+ * - Products and flyers are publicly readable but only writable by authorized users.
+ * - Global settings can only be modified by authorized users.
  *
  * Denormalization for Authorization:
- * - User ID is used in subcollection paths to easily enforce user-ownership.
+ *  The schema for entities such as Order includes the userId, so the rules can check
+ *  the userId against the request.auth.uid to verify ownership.
+ *
+ *  Also for entities under a user collection like Notifications, the notification document
+ *  includes the userId, so the rules can enforce consistency between the path
+ *  (/users/{userId}/notifications/{notificationId}) and the document's internal fields.
+ *
+ * Structural Segregation:
+ *  Publicly readable data (products, flyers) is stored in top-level collections,
+ *  separate from private user data under /users/{userId}.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the user is signed in.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the authenticated user's UID matches the provided userId.
-     * @param {string} userId - The user ID to compare against.
-     * @return {bool} True if the user is signed in and the UID matches, false otherwise.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the user is an admin based on custom claim.
-     * @return {bool} True if the user is an admin, false otherwise.
-     */
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.role == 'admin';
-    }
-
-    /**
-     * @description Checks if the user is the owner of existing data.
-     * @param {string} userId - The user ID to compare against.
-     * @return {bool} True if the user is the owner, and the document exists.
-     */
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Rules for user profiles.
+     * @description Controls access to user profile data.
      * @path /users/{userId}
-     * @allow (create) - User with matching UID can create their profile.
-     * @allow (get, update, delete) - User can access/modify their own profile.
-     * @deny (create) - User trying to create a profile with a different UID.
-     * @deny (get, update, delete) - User trying to access/modify another user's profile.
+     * @allow (read, write): if isSignedIn() && isOwner(userId);
+     * @deny (read, write): if !isSignedIn() || !isOwner(userId);
      * @principle Enforces user-ownership for profile data.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      // Helper function to check if the request comes from the owner of the user ID.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if a user is signed in.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // Disable listing of all user profiles.
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Rules for product information.
+     * @description Controls access to product information.
      * @path /products/{productId}
-     * @allow (get, list) - Public read access.
-     * @allow (create, update, delete) - Only admins can modify product information.
-     * @deny (create, update, delete) - Non-admins cannot modify product information.
-     * @principle Restricts write access to admins.
+     * @allow (read): if true;
+     * @allow (write): if false; // TODO: Add owner role check for writes.
+     * @deny (write): if true;
+     * @principle Allows public read access to product data.
      */
     match /products/{productId} {
       allow get, list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow create, update, delete: if false; // TODO: Add owner role check for writes.
     }
 
     /**
-     * @description Rules for user orders.
+     * @description Controls access to orders placed by users.
      * @path /users/{userId}/orders/{orderId}
-     * @allow (create, get, list) - User can create, read, and list their own orders.
-     * @allow (update, delete) - User can update and delete their own orders.
-     * @deny (create, get, list, update, delete) - User trying to access another user's orders.
+     * @allow (read, write): if isSignedIn() && isOwner(userId);
+     * @deny (read, write): if !isSignedIn() || !isOwner(userId);
      * @principle Enforces user-ownership for order data.
      */
     match /users/{userId}/orders/{orderId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      // Helper function to check if the request comes from the owner of the user ID.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if a user is signed in.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Rules for cart items.
+     * @description Controls access to cart items for each user.
      * @path /users/{userId}/cart_items/{cartItemId}
-     * @allow (create, get, list) - User can create, read, and list their own cart items.
-     * @allow (update, delete) - User can update and delete their own cart items.
-     * @deny (create, get, list, update, delete) - User trying to access another user's cart items.
-     * @principle Enforces user-ownership for cart data.
+     * @allow (read, write): if isSignedIn() && isOwner(userId);
+     * @deny (read, write): if !isSignedIn() || !isOwner(userId);
+     * @principle Enforces user-ownership for cart item data.
      */
     match /users/{userId}/cart_items/{cartItemId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      // Helper function to check if the request comes from the owner of the user ID.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if a user is signed in.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Rules for flyer information.
+     * @description Controls access to flyer information.
      * @path /flyers/{flyerId}
-     * @allow (get, list) - Public read access.
-     * @allow (create, update, delete) - Only admins can modify flyer information.
-     * @deny (create, update, delete) - Non-admins cannot modify flyer information.
-     * @principle Restricts write access to admins.
+     * @allow (read): if true;
+     * @allow (write): if false; // TODO: Add owner role check for writes.
+     * @deny (write): if true;
+     * @principle Allows public read access to flyer data.
      */
     match /flyers/{flyerId} {
       allow get, list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow create, update, delete: if false; // TODO: Add owner role check for writes.
     }
 
     /**
-     * @description Rules for service checklist items.
+     * @description Controls access to service checklist items for custom orders.
      * @path /users/{userId}/orders/{orderId}/service_checklist_items/{serviceChecklistItemId}
-     * @allow (create, get, list) - User can create, read, and list their own service checklist items.
-     * @allow (update, delete) - User can update and delete their own service checklist items.
-     * @deny (create, get, list, update, delete) - User trying to access another user's service checklist items.
-     * @principle Enforces user-ownership for service checklist data.
+     * @allow (read, write): if isSignedIn() && isOwner(userId);
+     * @deny (read, write): if !isSignedIn() || !isOwner(userId);
+     * @principle Enforces user-ownership for service checklist item data.
      */
     match /users/{userId}/orders/{orderId}/service_checklist_items/{serviceChecklistItemId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      // Helper function to check if the request comes from the owner of the user ID.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if a user is signed in.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Rules for notifications.
+     * @description Controls access to notifications for individual users.
      * @path /users/{userId}/notifications/{notificationId}
-     * @allow (create, get, list) - User can create, read, and list their own notifications.
-     * @allow (update, delete) - User can update and delete their own notifications.
-     * @deny (create, get, list, update, delete) - User trying to access another user's notifications.
+     * @allow (read, write): if isSignedIn() && isOwner(userId);
+     * @deny (read, write): if !isSignedIn() || !isOwner(userId);
      * @principle Enforces user-ownership for notification data.
      */
     match /users/{userId}/notifications/{notificationId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      // Helper function to check if the request comes from the owner of the user ID.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if a user is signed in.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Rules for global settings.
+     * @description Controls access to global application settings.
      * @path /settings/{settingId}
-     * @allow (get) - Public read access.
-     * @allow (create, update, delete) - Only admins can modify settings.
-     * @deny (create, update, delete) - Non-admins cannot modify settings.
-     * @principle Restricts write access to admins.
+     * @allow (read): if true;
+     * @allow (write): if false; // TODO: Add owner role check for writes.
+     * @deny (write): if true;
+     * @principle Restricts write access to global settings.
      */
     match /settings/{settingId} {
-      allow get: if true;
-      allow list: if false;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow get, list: if true;
+      allow create, update, delete: if false; // TODO: Add owner role check for writes.
     }
   }
 }
