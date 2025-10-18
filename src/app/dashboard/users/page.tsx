@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -31,7 +32,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
-function UserTable({ users, isLoading, isAllowed }: { users: WithId<User>[] | null; isLoading: boolean, isAllowed: boolean }) {
+function UserTable({ users, isLoading }: { users: WithId<User>[] | null; isLoading: boolean }) {
     const router = useRouter();
 
     if (isLoading) {
@@ -57,16 +58,6 @@ function UserTable({ users, isLoading, isAllowed }: { users: WithId<User>[] | nu
                 </TableBody>
             </Table>
         )
-    }
-
-    if (!isAllowed) {
-        return (
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full min-h-[300px] border-2 border-dashed rounded-lg p-4">
-                <ShieldAlert className="h-12 w-12 mb-4 text-destructive" />
-                <p className="font-semibold text-lg">Access Denied</p>
-                <p className="text-sm">You do not have permission to view this page.</p>
-            </div>
-        );
     }
 
     if (!users || users.length === 0) {
@@ -129,28 +120,15 @@ function UserTable({ users, isLoading, isAllowed }: { users: WithId<User>[] | nu
 export default function UserManagementPage() {
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
-
-    useEffect(() => {
-        if (user) {
-            user.getIdTokenResult().then(idTokenResult => {
-                setIsAdmin(!!idTokenResult.claims.admin);
-                setIsCheckingAdmin(false);
-            });
-        } else if (!isUserLoading) {
-            setIsCheckingAdmin(false);
-        }
-    }, [user, isUserLoading]);
 
     const usersQuery = useMemoFirebase(
-        () => (firestore && isAdmin ? collection(firestore, 'users') : null),
-        [firestore, isAdmin]
+        () => (firestore ? collection(firestore, 'users') : null),
+        [firestore]
     );
 
     const { data: users, isLoading: areUsersLoading } = useCollection<User>(usersQuery as any);
 
-    const isLoading = isUserLoading || isCheckingAdmin || areUsersLoading;
+    const isLoading = isUserLoading || areUsersLoading;
 
     return (
         <div className="flex-1 space-y-4">
@@ -170,11 +148,9 @@ export default function UserManagementPage() {
             <CardDescription>A list of all the users in your application.</CardDescription>
             </CardHeader>
             <CardContent>
-                <UserTable users={users as WithId<User>[] | null} isLoading={isLoading} isAllowed={isAdmin} />
+                <UserTable users={users as WithId<User>[] | null} isLoading={isLoading} />
             </CardContent>
         </Card>
         </div>
     );
 }
-
-    
