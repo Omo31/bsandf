@@ -19,7 +19,6 @@ import {
   SidebarTrigger,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { useAdmin } from '@/hooks/use-admin';
 import { useUser } from '@/firebase';
 
 const userNavLinks = [
@@ -43,7 +42,6 @@ const adminNavLinks = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useUser();
-  const { isAdmin } = useAdmin();
 
   const getActiveTab = (linkHref: string) => {
     if (linkHref === '/dashboard') {
@@ -75,7 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </SidebarMenu>
 
-          {user && isAdmin && (
+          {user && (
             <>
               <SidebarSeparator />
               <SidebarMenu>
