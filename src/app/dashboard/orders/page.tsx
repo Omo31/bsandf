@@ -316,6 +316,8 @@ export default function OrderManagementPage() {
   const { user, isUserLoading } = useUser();
   
   const ordersQuery = useMemoFirebase(() => {
+    // Only construct the query if firestore is available.
+    // This prevents an invalid query from being created on initial render.
     if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'));
   }, [firestore]);
@@ -340,5 +342,3 @@ export default function OrderManagementPage() {
     </div>
   );
 }
-
-    
