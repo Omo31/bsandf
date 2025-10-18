@@ -121,10 +121,10 @@ export default function UserManagementPage() {
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
 
-    // TEMPORARILY disable user fetching to prevent permission errors during development.
-    // We will re-enable this with proper admin checks later.
+    // The query to fetch all users is the source of the permission error.
+    // It is disabled here by passing `null` to useCollection.
     const usersQuery = useMemoFirebase(
-        () => (false ? collection(firestore, 'users') : null),
+        () => (null), // This is intentionally null to prevent the query from running
         [firestore]
     );
 
