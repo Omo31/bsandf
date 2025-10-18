@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -37,7 +38,7 @@ import {
 import { useUser } from '@/firebase';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const userNavLinks = [
   { href: '/dashboard', label: 'Summary', icon: BarChart },
@@ -60,7 +61,16 @@ const adminNavLinks = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useUser();
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+        user.getIdTokenResult().then(idTokenResult => {
+            setIsAdmin(!!idTokenResult.claims.admin);
+        });
+    }
+  }, [user]);
 
   const getActiveTab = (linkHref: string) => {
     if (linkHref === '/dashboard') {
@@ -92,7 +102,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </SidebarMenu>
 
-          {user && (
+          {isAdmin && (
             <>
               <SidebarSeparator />
               <Collapsible open={isAdminOpen} onOpenChange={setIsAdminOpen} className="w-full">
@@ -146,3 +156,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </SidebarProvider>
   );
 }
+
+    

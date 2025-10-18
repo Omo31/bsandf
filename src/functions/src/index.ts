@@ -1,41 +1,60 @@
 
+
 'use server';
 import * as admin from 'firebase-admin';
 import { onDocumentUpdated, onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onUserCreate } from 'firebase-functions/v2/auth';
 import { FieldValue } from 'firebase-admin/firestore';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * Trigger to create a user document in Firestore when a new Firebase Auth user is created.
+ * Sets the admin custom claim for the first user who signs up.
+ * Also initializes their user document.
  */
-export const createFirestoreUser = onUserCreate(async (event) => {
+export const initializeFirstUserAsAdmin = onUserCreate(async (event) => {
   const user = event.data;
   const { uid, email, displayName } = user;
 
-  const userRef = db.collection('users').doc(uid);
+  const usersCollection = db.collection('users');
+  const userDocs = await usersCollection.limit(2).get();
 
   const nameParts = displayName?.split(' ') || [];
   const firstName = nameParts[0] || 'New';
   const lastName = nameParts.slice(1).join(' ') || 'User';
 
-  try {
-    await userRef.set({
-        uid: uid,
-        email: email || '',
-        firstName: firstName,
-        lastName: lastName,
-        shippingAddress: '',
-        phoneNumber: '',
-        createdAt: FieldValue.serverTimestamp(),
-    });
+  // Check if this is the very first user being created in the entire system.
+  if (userDocs.empty) {
+    console.log(`First user detected: ${email}. Granting admin privileges.`);
+    // Set custom claim for admin access
+    await admin.auth().setCustomUserClaims(uid, { admin: true });
     
-    console.log(`Successfully created user document for ${uid}`);
+    // Create the user document with the 'admin' role.
+    const userRef = usersCollection.doc(uid);
+    await userRef.set({
+      uid,
+      email,
+      firstName,
+      lastName,
+      role: 'admin', // Explicitly set role in Firestore
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    console.log(`Admin user document created for ${uid}.`);
 
-  } catch (error) {
-    console.error(`Error in createFirestoreUser for ${uid}:`, error);
+  } else {
+    // For all other users, create a standard user document.
+    const userRef = usersCollection.doc(uid);
+    await userRef.set({
+      uid,
+      email,
+      firstName,
+      lastName,
+      role: 'user', // Default role is 'user'
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    console.log(`Standard user document created for ${uid}.`);
   }
 });
 
@@ -47,6 +66,7 @@ export const updateInventoryOnOrderAccepted = onDocumentUpdated('users/{userId}/
     const beforeData = event.data?.before.data();
     const afterData = event.data?.after.data();
 
+    // Check if the status was changed to 'Accepted'
     if (beforeData?.status !== 'Accepted' && afterData?.status === 'Accepted') {
         const items = afterData.items;
         if (!items || !Array.isArray(items)) {
@@ -59,6 +79,7 @@ export const updateInventoryOnOrderAccepted = onDocumentUpdated('users/{userId}/
         items.forEach((item: { productId: string; quantity: number }) => {
             if (item.productId && item.quantity > 0) {
                 const productRef = db.collection('products').doc(item.productId);
+                // Decrement the inventory count
                 batch.update(productRef, { stock: FieldValue.increment(-item.quantity) });
             }
         });
@@ -91,9 +112,7 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     const userData = userDoc.data();
     const userName = userData ? `${userData.firstName} ${userData.lastName}` : 'A customer';
 
-    // This is a placeholder for how you might identify admins in the future.
-    // For now, it will not find any admins.
-    const adminRoles = await db.collection('users').where('is_admin', '==', true).get();
+    const adminRoles = await db.collection('users').where('role', '==', 'admin').get();
     if (adminRoles.empty) {
       console.log('No admins found to notify.');
       return;
@@ -103,7 +122,7 @@ export const onOrderCreated = onDocumentCreated('users/{userId}/orders/{orderId}
     const notification = {
       title: 'New Order for Review',
       message: `${userName} placed a new order (#${orderId}) that needs your review.`,
-      link: `/admin/orders`,
+      link: `/dashboard/orders`,
       isRead: false,
       timestamp: FieldValue.serverTimestamp(),
     };
@@ -131,7 +150,7 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
   const afterData = event.data?.after.data();
 
   if (!beforeData || !afterData || beforeData.status === afterData.status) {
-    return;
+    return; // No status change
   }
 
   let title = `Order #${orderId} Updated`;
@@ -182,8 +201,7 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       const userDoc = await db.collection('users').doc(userId).get();
       const userName = userDoc.exists ? `${userDoc.data()?.firstName} ${userDoc.data()?.lastName}` : 'A customer';
       
-      // This is a placeholder for how you might identify admins in the future.
-      const adminRoles = await db.collection('users').where('is_admin', '==', true).get();
+      const adminRoles = await db.collection('users').where('role', '==', 'admin').get();
       if (adminRoles.empty) {
         console.log('No admins found to notify.');
         return;
@@ -193,7 +211,7 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
       const adminNotification = {
         title: `Order #${orderId} ${afterData.status}`,
         message: `${userName} has ${afterData.status.toLowerCase()} their order.`,
-        link: `/admin/orders`,
+        link: `/dashboard/orders`,
         isRead: false,
         timestamp: FieldValue.serverTimestamp(),
       };
@@ -212,3 +230,5 @@ export const onOrderStatusUpdate = onDocumentUpdated('users/{userId}/orders/{ord
     console.error('Error sending order status notification:', error);
   }
 });
+
+    

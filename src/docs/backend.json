@@ -26,8 +26,8 @@
         },
         "role": {
           "type": "string",
-          "description": "Role of the user (e.g., owner, user).",
-          "enum": ["owner", "user"]
+          "description": "Role of the user (e.g., admin, user).",
+          "enum": ["admin", "user"]
         },
         "shippingAddress": {
           "type": "string",
@@ -429,7 +429,7 @@
           "schema": {
             "$ref": "#/entities/User"
           },
-          "description": "Stores user profiles, accessible by the user and owners.",
+          "description": "Stores user profiles, accessible by the user and admins.",
           "params": [
             {
               "name": "userId",
@@ -445,7 +445,7 @@
           "schema": {
             "$ref": "#/entities/Product"
           },
-          "description": "Stores product information, accessible for reading by all users, but writable only by owners.",
+          "description": "Stores product information, accessible for reading by all users, but writable only by admins.",
           "params": [
             {
               "name": "productId",
@@ -461,7 +461,7 @@
           "schema": {
             "$ref": "#/entities/Order"
           },
-          "description": "Stores orders placed by users. Accessible by the user and owners.",
+          "description": "Stores orders placed by users. Accessible by the user and admins.",
           "params": [
             {
               "name": "userId",
@@ -481,7 +481,7 @@
           "schema": {
             "$ref": "#/entities/CartItem"
           },
-          "description": "Stores cart items for each user. Accessible only by the user and owners.",
+          "description": "Stores cart items for each user. Accessible only by the user and admins.",
           "params": [
             {
               "name": "userId",
@@ -501,7 +501,7 @@
           "schema": {
             "$ref": "#/entities/Flyer"
           },
-          "description": "Stores flyer information, accessible for reading by all users, but writable only by owners.",
+          "description": "Stores flyer information, accessible for reading by all users, but writable only by admins.",
           "params": [
             {
               "name": "flyerId",
@@ -517,7 +517,7 @@
           "schema": {
             "$ref": "#/entities/ServiceChecklistItem"
           },
-          "description": "Stores service checklist items for custom orders. Accessible by the user and owners.",
+          "description": "Stores service checklist items for custom orders. Accessible by the user and admins.",
           "params": [
             {
               "name": "userId",
@@ -561,7 +561,7 @@
           "schema": {
             "$ref": "#/entities/HomePageSettings"
           },
-          "description": "Stores global application settings. Writable only by owners.",
+          "description": "Stores global application settings. Writable only by admins.",
           "params": [
             {
               "name": "settingId",
@@ -571,6 +571,8 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features. The new security model is based on an 'owner' role. User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization for the user themselves, while the 'owner' role grants global access. A single `/settings` collection holds sitewide configuration documents like `home_page` and `footer_settings`. This separation simplifies security rules. The owner role is managed via a custom claim on the user's auth token, which is the most secure and efficient method. This design ensures that security rules can be written clearly and efficiently, promoting a more secure and scalable application."
+    "reasoning": "The Firestore structure is designed to support the BeautifulSoup&Food application's features. The new security model is based on an 'admin' role. User-specific data (cart items, orders, notifications) is stored under `/users/{userId}` to leverage path-based authorization for the user themselves, while the 'admin' role grants global access. A single `/settings` collection holds sitewide configuration documents like `home_page` and `footer_settings`. This separation simplifies security rules. The admin role is managed via a custom claim on the user's auth token, which is the most secure and efficient method. This design ensures that security rules can be written clearly and efficiently, promoting a more secure and scalable application."
   }
 }
+
+    
