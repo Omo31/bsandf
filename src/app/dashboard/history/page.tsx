@@ -226,7 +226,7 @@ const HistoryTable = ({ orders, isLoading, statusFilter }: { orders: WithId<Orde
 
 
 export default function PurchaseHistoryPage() {
-  const { user, areServicesAvailable } = useUser();
+  const { user, areServicesAvailable, isUserLoading } = useUser();
   const firestore = useFirestore();
 
   const ordersQuery = useMemoFirebase(() => {
@@ -234,27 +234,14 @@ export default function PurchaseHistoryPage() {
     return query(collection(firestore, `users/${user.uid}/orders`));
   }, [user, firestore, areServicesAvailable]);
   
-  const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
+  const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const isLoading = isUserLoading || isOrdersLoading;
 
   const pendingApprovalCount = useMemo(() => {
     if (!orders) return 0;
     return orders.filter(o => o.status === 'Pending User Approval').length;
   }, [orders]);
-
-  if (!user && !isLoading) {
-    return (
-       <div className="flex-1 space-y-4 p-8 pt-6">
-         <div className="flex items-center justify-between space-y-2">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Purchase History</h2>
-              <p className="text-muted-foreground">
-                Please log in to view your order history.
-              </p>
-            </div>
-          </div>
-       </div>
-    )
-  }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">

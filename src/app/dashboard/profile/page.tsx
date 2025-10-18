@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -21,7 +22,8 @@ import { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import type { User as AppUser } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, User as UserIcon } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const notificationSettings = [
   { id: 'new-offers', label: 'New Special Offers', description: 'Receive notifications about new promotions and discounts.' },
@@ -31,7 +33,7 @@ const notificationSettings = [
 ];
 
 export default function ProfilePage() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -62,8 +64,17 @@ export default function ProfilePage() {
           });
         }
       });
+    } else if (!isUserLoading && !user) {
+        // Set default/empty state if no user is logged in
+        setProfileData({
+            firstName: 'Guest',
+            lastName: 'User',
+            email: 'Not logged in',
+            shippingAddress: '',
+            phoneNumber: ''
+        });
     }
-  }, [user, firestore]);
+  }, [user, firestore, isUserLoading]);
 
   const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -116,6 +127,7 @@ export default function ProfilePage() {
     }
   };
 
+  const isLoading = isUserLoading && !user;
 
   return (
     <div className="flex-1 space-y-8 p-8 pt-6">
@@ -135,40 +147,54 @@ export default function ProfilePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/80/80`} />
-              <AvatarFallback>{profileData.firstName ? profileData.firstName.charAt(0) : 'U'}</AvatarFallback>
-            </Avatar>
-            <Button variant="outline" disabled>Change Photo</Button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" value={profileData.firstName} onChange={handleProfileInputChange} />
+          {isLoading ? (
+            <div className="space-y-6">
+              <div className="flex items-center space-x-4">
+                <Skeleton className="h-20 w-20 rounded-full" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-24 w-full" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" value={profileData.lastName} onChange={handleProfileInputChange} />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={profileData.email} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber">Phone Number</Label>
-              <Input id="phoneNumber" value={profileData.phoneNumber} onChange={handleProfileInputChange} />
-            </div>
-          </div>
-           <div className="space-y-2">
-              <Label htmlFor="shippingAddress">Primary Address</Label>
-              <Textarea id="shippingAddress" value={profileData.shippingAddress} onChange={handleProfileInputChange} />
-            </div>
+          ) : (
+            <>
+              <div className="flex items-center space-x-4">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/80/80`} />
+                  <AvatarFallback>{profileData.firstName ? profileData.firstName.charAt(0) : 'U'}</AvatarFallback>
+                </Avatar>
+                <Button variant="outline" disabled={!user}>Change Photo</Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input id="firstName" value={profileData.firstName} onChange={handleProfileInputChange} disabled={!user}/>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input id="lastName" value={profileData.lastName} onChange={handleProfileInputChange} disabled={!user}/>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" value={profileData.email} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input id="phoneNumber" value={profileData.phoneNumber} onChange={handleProfileInputChange} disabled={!user}/>
+                </div>
+              </div>
+              <div className="space-y-2">
+                  <Label htmlFor="shippingAddress">Primary Address</Label>
+                  <Textarea id="shippingAddress" value={profileData.shippingAddress} onChange={handleProfileInputChange} disabled={!user}/>
+              </div>
+            </>
+          )}
         </CardContent>
         <CardFooter>
-          <Button onClick={handleSaveChanges} disabled={isSavingProfile}>
+          <Button onClick={handleSaveChanges} disabled={isSavingProfile || !user}>
             {isSavingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Profile
           </Button>
@@ -188,7 +214,7 @@ export default function ProfilePage() {
                         To change your password, send a reset link to your email.
                     </p>
                  </div>
-                <Button onClick={handlePasswordReset} disabled={isSendingReset}>
+                <Button onClick={handlePasswordReset} disabled={isSendingReset || !user}>
                     {isSendingReset && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Send Reset Link
                 </Button>
@@ -214,7 +240,7 @@ export default function ProfilePage() {
                     {setting.description}
                 </p>
               </div>
-              <Switch id={setting.id} defaultChecked={setting.id !== 'newsletter'} disabled/>
+              <Switch id={setting.id} defaultChecked={setting.id !== 'newsletter'} disabled={!user}/>
             </div>
           ))}
         </CardContent>

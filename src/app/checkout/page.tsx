@@ -133,8 +133,11 @@ function CheckoutForm() {
     )
   }
   
-  if (!user) {
-    return <p className="text-center text-muted-foreground">Please log in to continue.</p>;
+  if (!isUserLoading && !user) {
+    // Gracefully handle no user, maybe show a message but don't block render.
+     return (
+          <p className="text-center text-muted-foreground">Create an account to checkout.</p>
+      )
   }
 
   if (!cartItems || cartItems.length === 0) {
@@ -170,7 +173,7 @@ function CheckoutForm() {
         </div>
       </CardContent>
       <CardFooter>
-        <Button className="w-full" onClick={handleSubmitOrder} disabled={isLoading}>
+        <Button className="w-full" onClick={handleSubmitOrder} disabled={isLoading || !user}>
           {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (

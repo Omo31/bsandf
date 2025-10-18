@@ -18,6 +18,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 function CartItemRow({ item }: { item: WithId<CartItem> }) {
   const firestore = useFirestore();
   const image = placeholderImages.find((p) => p.id.includes(item.productId));
+  
+  if (!firestore || !item.userId) return null; // Don't render if firestore or user is not available
+
   const itemRef = doc(firestore, `users/${item.userId}/cart_items`, item.id);
 
   const handleQuantityChange = (amount: number) => {
@@ -74,13 +77,13 @@ export default function CartPage() {
     () => (user && areServicesAvailable ? collection(firestore, `users/${user.uid}/cart_items`) : null),
     [user, firestore, areServicesAvailable]
   );
-  const { data: cart, isLoading } = useCollection<CartItem>(cartItemsQuery);
+  const { data: cart, isLoading: isCartLoading } = useCollection<CartItem>(cartItemsQuery);
 
   const subtotal = cart?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
   const serviceCharge = subtotal * 0.06;
   const total = subtotal + serviceCharge;
   
-  const isLoadingCart = isUserLoading || isLoading;
+  const isLoading = isUserLoading || isCartLoading;
 
   return (
     <div className="container mx-auto px-4 md:px-6 py-12">
@@ -89,17 +92,17 @@ export default function CartPage() {
         <div className="md:col-span-2">
           <Card>
             <CardContent className="p-0">
-              {isLoadingCart && (
+              {isLoading && (
                 <div className="p-4 space-y-4">
                   {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
                 </div>
               )}
-              {!isLoadingCart && cart && cart.length > 0 ? (
+              {!isLoading && cart && cart.length > 0 ? (
                 <ul className="divide-y">
                   {cart.map((item) => <CartItemRow key={item.id} item={item} />)}
                 </ul>
               ) : (
-                !isLoadingCart && (
+                !isLoading && (
                   <div className="p-8 text-center text-muted-foreground">
                     <p>Your cart is empty.</p>
                   </div>
@@ -116,21 +119,21 @@ export default function CartPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>{isLoadingCart ? <Skeleton className="h-5 w-20" /> : `₦${subtotal.toFixed(2)}`}</span>
+                <span>{isLoading ? <Skeleton className="h-5 w-20" /> : `₦${subtotal.toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between">
                 <span>Service Charge (6%)</span>
-                <span>{isLoadingCart ? <Skeleton className="h-5 w-16" /> : `₦${serviceCharge.toFixed(2)}`}</span>
+                <span>{isLoading ? <Skeleton className="h-5 w-16" /> : `₦${serviceCharge.toFixed(2)}`}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Estimated Total</span>
-                <span>{isLoadingCart ? <Skeleton className="h-6 w-24" /> : `₦${total.toFixed(2)}`}</span>
+                <span>{isLoading ? <Skeleton className="h-6 w-24" /> : `₦${total.toFixed(2)}`}</span>
               </div>
                <p className="text-xs text-muted-foreground">Shipping fee will be calculated by an admin after you submit your order.</p>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-              <Button className="w-full" disabled={!cart || cart.length === 0 || isLoadingCart} asChild>
+              <Button className="w-full" disabled={!cart || cart.length === 0 || isLoading} asChild>
                 <Link href="/checkout">
                   <CreditCard className="mr-2 h-4 w-4" />
                   Proceed to Checkout

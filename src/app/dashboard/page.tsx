@@ -85,7 +85,8 @@ function UserSummary({ user, orders, isLoading } : { user: any, orders: WithId<O
                 <CardHeader>
                     <CardTitle>Recent Order</CardTitle>
                     {isLoading ? <Skeleton className="h-4 w-2/3" /> :
-                    recentOrder && <CardDescription>Tracking for order <span className="font-semibold">#{recentOrder.id.substring(0,8)}...</span></CardDescription>
+                    recentOrder ? <CardDescription>Tracking for order <span className="font-semibold">#{recentOrder.id.substring(0,8)}...</span></CardDescription> :
+                    <CardDescription>You have no recent orders.</CardDescription>
                     }
                 </CardHeader>
                 <CardContent>
@@ -126,7 +127,7 @@ function UserSummary({ user, orders, isLoading } : { user: any, orders: WithId<O
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="font-medium">Primary Address</p>
-                            <p className="text-sm text-muted-foreground">{user ? 'View in profile' : '...'}</p>
+                            <p className="text-sm text-muted-foreground">{user?.shippingAddress ? 'View in profile' : 'Not set'}</p>
                         </div>
                         <Button variant="ghost" size="sm" asChild><Link href="/dashboard/profile">Edit</Link></Button>
                     </div>
@@ -164,16 +165,6 @@ export default function UserDashboardPage() {
     const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
     const isLoading = isUserLoading || areOrdersLoading;
-
-    if (isLoading && !user) {
-        return (
-            <div className="flex-1 space-y-4 p-8 pt-6">
-                <Skeleton className="h-9 w-1/3" />
-                <Skeleton className="h-40 w-full" />
-                <Skeleton className="h-64 w-full" />
-            </div>
-        )
-    }
 
     return (
         <div className="flex-1 space-y-8">

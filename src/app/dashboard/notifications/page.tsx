@@ -22,7 +22,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
   const firestore = useFirestore();
 
   const handleMarkAsRead = () => {
-    if (notification.isRead || !firestore) return;
+    if (notification.isRead || !firestore || !notification.userId) return;
     const notifRef = doc(firestore, `users/${notification.userId}/notifications/${notification.id}`);
     updateDoc(notifRef, { isRead: true });
   };
@@ -62,7 +62,10 @@ export default function NotificationsPage() {
     return query(collection(firestore, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'));
   }, [user, firestore, areServicesAvailable]);
 
-  const { data: notifications, isLoading } = useCollection<Notification>(notificationsQuery);
+  const { data: notifications, isLoading: isNotificationsLoading } = useCollection<Notification>(notificationsQuery);
+  
+  const isLoading = isUserLoading || isNotificationsLoading;
+  
   const unreadCount = notifications?.filter(n => !n.isRead).length || 0;
 
   const handleMarkAllAsRead = () => {
@@ -74,23 +77,6 @@ export default function NotificationsPage() {
       }
     });
   };
-
-  const finalIsLoading = isLoading || isUserLoading;
-
-   if (!user && !finalIsLoading) {
-    return (
-       <div className="flex-1 space-y-4 p-8 pt-6">
-         <div className="flex items-center justify-between space-y-2">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Notifications</h2>
-              <p className="text-muted-foreground">
-                Please log in to see your notifications.
-              </p>
-            </div>
-          </div>
-       </div>
-    )
-  }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -109,25 +95,25 @@ export default function NotificationsPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>All Updates</CardTitle>
-            <CardDescription>You have {finalIsLoading ? '...' : unreadCount} unread notifications.</CardDescription>
+            <CardDescription>You have {isLoading ? '...' : unreadCount} unread notifications.</CardDescription>
           </div>
            <Bell className="h-6 w-6 text-muted-foreground" />
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y">
-            {finalIsLoading && (
+            {isLoading && (
               <div className="p-4 space-y-4">
                 <Skeleton className="h-16 w-full" />
                 <Skeleton className="h-16 w-full" />
                 <Skeleton className="h-16 w-full" />
               </div>
             )}
-            {!finalIsLoading && notifications && notifications.length > 0 ? (
+            {!isLoading && notifications && notifications.length > 0 ? (
               notifications.map((notification) => (
                 <NotificationItem key={notification.id} notification={notification} />
               ))
             ) : (
-              !finalIsLoading && (
+              !isLoading && (
                 <div className="p-8 text-center text-muted-foreground">
                   You have no notifications yet.
                 </div>
