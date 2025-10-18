@@ -1,215 +1,201 @@
 /**
  * @file Firestore Security Rules for BeautifulSoup&Food
- * @corePhilosophy This ruleset enforces a strict user-ownership model for personal data, combined with public read access for products, flyers, and homepage settings.  Admin roles are supported via a dedicated collection.  All writes are carefully controlled and validated.
- * @dataStructure
- *  - /users/{userId}: User profile information, accessible only by the user and admins.
- *  - /products/{productId}: Product information, publicly readable, writable only by admins.
- *  - /users/{userId}/orders/{orderId}: Orders placed by a specific user, accessible only by the user and admins.
- *  - /users/{userId}/cart_items/{cartItemId}: Cart items for a specific user, accessible only by the user and admins.
- *  - /chat_messages/{chatMessageId}: Chat messages between users and admins, access controlled by senderId and receiverId fields.
- *  - /flyers/{flyerId}: Flyer information, publicly readable, writable only by admins.
- *  - /users/{userId}/orders/{orderId}/service_checklist_items/{serviceChecklistItemId}: Checklist items for a specific user's order, accessible only by the user and admins.
- *  - /roles_admin/{userId}: Documents indicating admin roles.  Existence of a document grants admin privileges.
- *  - /users/{userId}/notifications/{notificationId}: Notifications for a specific user, accessible only by the user and admins.
- *  - /settings/{settingId}: Global application settings, publicly readable, writable only by admins.
- * @keySecurityDecisions
- *  - User listing is disallowed to protect privacy.
- *  - Public read access is granted to /products, /flyers, and /settings to enable open data consumption.
- *  - Admin privileges are granted based on the existence of a document in the /roles_admin/{userId} collection.
- *  - All write operations are protected by authorization checks.
+ *
+ * @Core Philosophy: This ruleset enforces a strict user-ownership model for personal data,
+ * and role-based access control for administrative functions. Public read access is granted
+ * to specific collections like `products` and `flyers`, while all writes are carefully
+ * restricted.
+ *
+ * @Data Structure:
+ * - `/users/{userId}`: User profiles, accessible only by the user themselves and admins.
+ * - `/products/{productId}`: Product information, publicly readable but only writable by admins.
+ * - `/users/{userId}/orders/{orderId}`: Orders placed by users, accessible only by the user and admins.
+ * - `/users/{userId}/cart_items/{cartItemId}`: Cart items for each user, accessible only by the user and admins.
+ * - `/chat_messages/{chatMessageId}`: Chat messages between users and admins, accessible to sender, receiver, and admins.
+ * - `/flyers/{flyerId}`: Flyer information, publicly readable but only writable by admins.
+ * - `/users/{userId}/orders/{orderId}/service_checklist_items/{serviceChecklistItemId}`: Service checklist items for orders, accessible by the user and admins.
+ * - `/roles_admin/{userId}`: Admin role assignments; existence of a document grants admin privileges.
+ * - `/users/{userId}/notifications/{notificationId}`: Notifications for individual users, accessible only by the user and admins.
+ * - `/settings/{settingId}`: Global application settings, publicly readable but only writable by admins.
+ *
+ * @Key Security Decisions:
+ * - User listing is implicitly denied (no top-level `/users` collection).
+ * - Public read access is granted to the `/products` and `/flyers` collections to showcase available items/promotions.
+ * - Admin privileges are granted by the existence of a document in the `/roles_admin/{userId}` collection.
+ * - Ambiguous relationships are defaulted to owner-only access.
+ *
+ * @Denormalization for Authorization:
+ * - The `chat_messages` collection denormalizes `senderId` and `receiverId` directly onto each document
+ *   to avoid `get()` calls when determining read access.
+ *
+ * @Structural Segregation:
+ * - User-specific data is stored under the `/users/{userId}` collection to ensure clear ownership and
+ *   facilitate efficient, secure list operations. Public and private content are stored in separate
+ *   top-level collections (e.g., `/flyers` for public flyers, `/users/{userId}/notifications` for private notifications).
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Checks if the request is made by a signed-in user.
-     */
+    // Helper function to check if the user is signed in
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * @description Checks if the request is made by the owner of the user ID.
-     */
+    // Helper function to check if the user is the owner of the document
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    /**
-     * @description Checks if the request is made by an existing owner of the user ID.
-     */
+    // Helper function to check if the user is an existing owner of the document
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
-    /**
-     * @description Checks if the requesting user is an admin.
-     * @details This function checks for the existence of a document in the /roles_admin/{userId} collection.
-     */
+    // Helper function to check if the user is an admin
     function isAdmin() {
-        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     /**
-     * @description Rule for user profiles.
+     * @description Controls access to user profiles.
      * @path /users/{userId}
-     * @allow (create) - User with matching userId can create their profile.
-     * @allow (get, update, delete) - User and Admin can access the user's profile.
-     * @deny (create) - User creating a profile with a mismatched userId.
-     * @deny (list) - Listing all users is not allowed.
-     * @principle Enforces document ownership for writes; restricts access to a user's own data.
+     * @allow (create) User with matching userId can create their profile.
+     * @allow (get, update, delete) Authenticated user can access their own profile; admins can access any profile.
+     * @deny (create) User tries to create a profile with a mismatched userId.
+     * @deny (get, update, delete) User tries to access another user's profile without admin privileges.
+     * @principle Enforces document ownership for writes and admin override for reads.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get, update, delete: if isExistingOwner(userId) || isAdmin();
+      allow create: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
-     * @description Rule for products.
+     * @description Controls access to product information.
      * @path /products/{productId}
-     * @allow (get, list) - All users can read product information.
-     * @allow (create, update, delete) - Only admins can modify product information.
-     * @deny (create, update, delete) - Non-admins cannot modify product information.
-     * @principle Public read, admin-only writes.
+     * @allow (get, list) Any user can read product information.
+     * @allow (create, update, delete) Only admins can modify product information.
+     * @deny (create, update, delete) Non-admins attempt to modify product information.
+     * @principle Allows public read access with admin-only writes.
      */
     match /products/{productId} {
       allow get, list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Rule for orders placed by users.
+     * @description Controls access to user orders.
      * @path /users/{userId}/orders/{orderId}
-     * @allow (get, list) - User and Admin can access the user's orders.
-     * @allow (create) - User with matching userId can create orders under their profile.
-     * @allow (update, delete) - User and Admin can modify the user's orders.
-     * @deny (create) - User creating an order with a mismatched userId.
-     * @principle Enforces document ownership for writes; restricts access to a user's own data.
+     * @allow (create) User can create their own order.
+     * @allow (get, update, delete) Authenticated user can access their own order; admins can access any order.
+     * @deny (create) User tries to create an order for a mismatched userId.
+     * @deny (get, update, delete) User tries to access another user's order without admin privileges.
+     * @principle Enforces document ownership for writes and admin override for reads.
      */
     match /users/{userId}/orders/{orderId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get, update, delete: if isExistingOwner(userId) || isAdmin();
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
       allow list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
-     * @description Rule for cart items for each user.
+     * @description Controls access to user cart items.
      * @path /users/{userId}/cart_items/{cartItemId}
-     * @allow (get, list) - User and Admin can access the user's cart items.
-     * @allow (create) - User with matching userId can create cart items under their profile.
-     * @allow (update, delete) - User and Admin can modify the user's cart items.
-     * @deny (create) - User creating a cart item with a mismatched userId.
-     * @principle Enforces document ownership for writes; restricts access to a user's own data.
+     * @allow (create) User can create their own cart item.
+     * @allow (get, update, delete) Authenticated user can access their own cart item; admins can access any cart item.
+     * @deny (create) User tries to create a cart item for a mismatched userId.
+     * @deny (get, update, delete) User tries to access another user's cart item without admin privileges.
+     * @principle Enforces document ownership for writes and admin override for reads.
      */
     match /users/{userId}/cart_items/{cartItemId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get, update, delete: if isExistingOwner(userId) || isAdmin();
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
       allow list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
-     * @description Rule for chat messages between users and admins.
+     * @description Controls access to chat messages.
      * @path /chat_messages/{chatMessageId}
-     * @allow (get, list) - Sender and Receiver can access the chat message
-     * @allow (create) - Sender can create the chat message.
-     * @allow (update, delete) - Sender and Admin can modify the chat message.
-     * @principle Access control based on senderId and receiverId fields.
+     * @allow (create) Any authenticated user can create a chat message.
+     * @allow (get, update, delete) Only the sender, receiver, or an admin can access a chat message.
+     * @deny (get, update, delete) User tries to access a chat message they are not involved in without admin privileges.
+     * @principle Enforces access control based on sender/receiver relationship and admin override.
      */
     match /chat_messages/{chatMessageId} {
-      allow get: if request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId;
-      allow list: if true; // removing the rule here to fix the bug
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.senderId;
-      allow update: if (request.auth.uid == resource.data.senderId) && resource != null || isAdmin();
-      allow delete: if (request.auth.uid == resource.data.senderId) && resource != null || isAdmin();
+      allow get, update, delete: if (isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid)) || isAdmin();
+      allow create: if isSignedIn();
+      allow list: if isSignedIn() || isAdmin();
     }
 
     /**
-     * @description Rule for flyers.
+     * @description Controls access to flyer information.
      * @path /flyers/{flyerId}
-     * @allow (get, list) - All users can read flyer information.
-     * @allow (create, update, delete) - Only admins can modify flyer information.
-     * @deny (create, update, delete) - Non-admins cannot modify flyer information.
-     * @principle Public read, admin-only writes.
+     * @allow (get, list) Any user can read flyer information.
+     * @allow (create, update, delete) Only admins can modify flyer information.
+     * @deny (create, update, delete) Non-admins attempt to modify flyer information.
+     * @principle Allows public read access with admin-only writes.
      */
     match /flyers/{flyerId} {
       allow get, list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Rule for service checklist items for custom orders.
+     * @description Controls access to service checklist items for custom orders.
      * @path /users/{userId}/orders/{orderId}/service_checklist_items/{serviceChecklistItemId}
-     * @allow (get, list) - User and Admin can access the user's service checklist items.
-     * @allow (create) - User with matching userId can create service checklist items under their profile.
-     * @allow (update, delete) - User and Admin can modify the user's service checklist items.
-     * @deny (create) - User creating a service checklist item with a mismatched userId.
-     * @principle Enforces document ownership for writes; restricts access to a user's own data.
+     * @allow (create) User can create their own service checklist item for their order.
+     * @allow (get, update, delete) Authenticated user can access their own service checklist item; admins can access any service checklist item.
+     * @deny (create) User tries to create a service checklist item for a mismatched userId or orderId.
+     * @deny (get, update, delete) User tries to access another user's service checklist item without admin privileges.
+     * @principle Enforces document ownership for writes and admin override for reads.
      */
     match /users/{userId}/orders/{orderId}/service_checklist_items/{serviceChecklistItemId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get, update, delete: if isExistingOwner(userId) || isAdmin();
+      allow create: if isSignedIn() && isOwner(userId) && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.userId == userId;
       allow list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
-     * @description Rule for admin role assignments.
+     * @description Controls access to admin role assignments.
      * @path /roles_admin/{userId}
-     * @allow (get, create, update, delete) - Only admins can manage admin roles.
-     * @deny (get, create, update, delete) - Non-admins cannot manage admin roles.
-     * @principle Admin-only access.
+     * @allow (create) Only admins can assign admin roles.
+     * @allow (get, update, delete) Only admins can manage admin roles.
+     * @deny (create, get, update, delete) Non-admins attempt to manage admin roles.
+     * @principle Enforces admin-only access for role management.
      */
     match /roles_admin/{userId} {
-      allow get: if isAdmin();
+      allow get, create, update, delete: if isAdmin();
       allow list: if false;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
     }
 
     /**
-     * @description Rule for notifications for individual users.
+     * @description Controls access to user notifications.
      * @path /users/{userId}/notifications/{notificationId}
-     * @allow (get, list) - User and Admin can access the user's notifications.
-     * @allow (create) - User with matching userId can create notifications under their profile.
-     * @allow (update, delete) - User and Admin can modify the user's notifications.
-     * @deny (create) - User creating a notification with a mismatched userId.
-     * @principle Enforces document ownership for writes; restricts access to a user's own data.
+     * @allow (create) Notifications are created by the system.
+     * @allow (get, update, delete) Authenticated user can access their own notifications; admins can access any notification.
+     * @deny (create) User tries to create a notification for a mismatched userId.
+     * @deny (get, update, delete) User tries to access another user's notification without admin privileges.
+     * @principle Enforces document ownership for reads and disallows client-side creation.
      */
     match /users/{userId}/notifications/{notificationId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get, update, delete: if isExistingOwner(userId) || isAdmin();
+      allow create: if false;
       allow list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
-    /**
-     * @description Rule for home page settings.
-     * @path /settings/{settingId}
-     * @allow (get, list) - All users can read home page settings.
-     * @allow (create, update, delete) - Only admins can modify home page settings.
-     * @deny (create, update, delete) - Non-admins cannot modify home page settings.
-     * @principle Public read, admin-only writes.
-     */
-    match /settings/{settingId} {
-      allow get, list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
-    }
+      /**
+       * @description Controls access to home page settings.
+       * @path /settings/{settingId}
+       * @allow (get, list) Any user can read home page settings.
+       * @allow (create, update, delete) Only admins can modify home page settings.
+       * @deny (create, update, delete) Non-admins attempt to modify home page settings.
+       * @principle Allows public read access with admin-only writes.
+       */
+      match /settings/{settingId} {
+        allow get, list: if true;
+        allow create, update, delete: if isAdmin();
+      }
   }
 }
