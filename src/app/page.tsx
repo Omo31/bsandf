@@ -20,12 +20,12 @@ export default function Home() {
   const { user, isUserLoading, areServicesAvailable } = useUser();
   const firestore = useFirestore();
 
-  // Fetch homepage settings only when firestore is available
-  const settingsDocRef = useMemoFirebase(() => (firestore && areServicesAvailable ? doc(firestore, 'settings', 'home_page') : null), [firestore, areServicesAvailable]);
+  // Fetch homepage settings only when firestore and services are available.
+  const settingsDocRef = useMemoFirebase(() => (areServicesAvailable ? doc(firestore, 'settings', 'home_page') : null), [firestore, areServicesAvailable]);
   const { data: settings, isLoading: isLoadingSettings } = useDoc<HomePageSettings>(settingsDocRef);
   
-  // Fetch all products only when firestore is available
-  const productsQuery = useMemoFirebase(() => (firestore && areServicesAvailable ? collection(firestore, 'products') : null), [firestore, areServicesAvailable]);
+  // Fetch all products only when firestore and services are available.
+  const productsQuery = useMemoFirebase(() => (areServicesAvailable ? collection(firestore, 'products') : null), [firestore, areServicesAvailable]);
   const { data: allProducts, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
   // Determine featured products
