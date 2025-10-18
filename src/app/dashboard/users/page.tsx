@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Download, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Download, Trash2, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,8 +39,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import type { User, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -100,14 +99,9 @@ function UserActions({ user: targetUser }: { user: WithId<User> }) {
 }
 
 export default function UserManagementPage() {
-  const firestore = useFirestore();
   const { user: currentUser } = useUser();
-  
-  const usersQuery = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'users') : null),
-    [firestore]
-  );
-  const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
+  const users = null; // Temporarily disable user listing
+  const isLoadingUsers = false; // Temporarily disable loading state
 
   return (
     <div className="flex-1 space-y-4">
@@ -127,64 +121,11 @@ export default function UserManagementPage() {
           <CardDescription>A list of all the users in your application.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoadingUsers && [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-10 w-10 rounded-full" />
-                        <div>
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-3 w-32 mt-1" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-6 w-16 rounded-full" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-8 w-8 ml-auto" />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              {users &&
-                users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={`https://picsum.photos/seed/${user.uid}/40/40`} />
-                          <AvatarFallback>
-                            {user.firstName?.charAt(0)}
-                            {user.lastName?.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</p>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === 'owner' ? 'default' : 'secondary'}>{user.role}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {currentUser?.uid !== user.uid && <UserActions user={user} />}
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
+           <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full min-h-[300px] border-2 border-dashed rounded-lg p-4">
+              <Users className="h-12 w-12 mb-4" />
+              <p className="font-semibold">Feature Under Development</p>
+              <p className="text-sm">Secure user management is being implemented and will be available soon.</p>
+          </div>
         </CardContent>
       </Card>
     </div>
