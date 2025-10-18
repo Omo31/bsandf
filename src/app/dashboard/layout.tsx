@@ -35,11 +35,9 @@ import {
   SidebarTrigger,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const userNavLinks = [
   { href: '/dashboard', label: 'Summary', icon: BarChart },
@@ -93,39 +91,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </SidebarMenu>
 
+          <SidebarSeparator />
           
-            <>
-              <SidebarSeparator />
-              <Collapsible open={isAdminOpen} onOpenChange={setIsAdminOpen} className="w-full">
-                 <SidebarMenu>
-                    <SidebarMenuItem>
-                         <CollapsibleTrigger asChild>
-                            <SidebarMenuButton variant="ghost" className="w-full justify-between">
-                               <div className="flex items-center gap-2">
-                                  <Shield />
-                                  <span>Admin Panel</span>
-                               </div>
-                               <ChevronDown className={cn("h-4 w-4 transition-transform", isAdminOpen && "rotate-180")} />
-                            </SidebarMenuButton>
-                         </CollapsibleTrigger>
+          <Collapsible open={isAdminOpen} onOpenChange={setIsAdminOpen} className="w-full">
+              <SidebarMenu>
+                <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton variant="ghost" className="w-full justify-between">
+                            <div className="flex items-center gap-2">
+                              <Shield />
+                              <span>Admin Panel</span>
+                            </div>
+                            <ChevronDown className={cn("h-4 w-4 transition-transform", isAdminOpen && "rotate-180")} />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            <CollapsibleContent>
+                <SidebarMenu className="pl-4 border-l ml-4">
+                    {adminNavLinks.map((link) => (
+                    <SidebarMenuItem key={link.href}>
+                        <SidebarMenuButton asChild isActive={getActiveTab(link.href)} tooltip={{ children: link.label }}>
+                        <Link href={link.href}>
+                            <link.icon />
+                            <span>{link.label}</span>
+                        </Link>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
-                 </SidebarMenu>
-                <CollapsibleContent>
-                    <SidebarMenu className="pl-4 border-l ml-4">
-                        {adminNavLinks.map((link) => (
-                        <SidebarMenuItem key={link.href}>
-                            <SidebarMenuButton asChild isActive={getActiveTab(link.href)} tooltip={{ children: link.label }}>
-                            <Link href={link.href}>
-                                <link.icon />
-                                <span>{link.label}</span>
-                            </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        ))}
-                    </SidebarMenu>
-                </CollapsibleContent>
-              </Collapsible>
-            </>
+                    ))}
+                </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
           
         </SidebarContent>
         <SidebarFooter>
